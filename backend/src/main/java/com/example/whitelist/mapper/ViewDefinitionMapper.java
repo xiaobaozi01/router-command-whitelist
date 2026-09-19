@@ -1,0 +1,7 @@
+package com.example.whitelist.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.example.whitelist.entity.ViewDefinition;
+
+public interface ViewDefinitionMapper extends BaseMapper<ViewDefinition> {
+}

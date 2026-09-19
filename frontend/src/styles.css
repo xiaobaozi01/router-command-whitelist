@@ -1,0 +1,74 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #162033;
+  background: #f3f6fa;
+  text-rendering: optimizeLegibility;
+  --ink: #162033;
+  --muted: #6c788e;
+  --line: #e4eaf2;
+  --primary: #2856d6;
+  --primary-soft: #edf2ff;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1180px; min-height: 100vh; background: #f3f6fa; }
+button, input, textarea { font: inherit; }
+
+.app-shell { min-height: 100vh; }
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: #111a2c;
+  color: white;
+  box-shadow: 10px 0 30px rgba(25, 38, 66, .08);
+}
+.app-shell > .el-container { margin-left: 232px; }
+.brand { height: 82px; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; color: white; font-weight: 800; font-size: 13px; letter-spacing: .5px; background: linear-gradient(145deg, #4777ff, #234ac1); box-shadow: 0 8px 22px rgba(42,86,214,.35); }
+.brand strong { display: block; font-size: 16px; letter-spacing: .5px; }
+.brand span { display: block; margin-top: 4px; color: #8290aa; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.nav-menu { flex: 1; border: 0 !important; background: transparent !important; padding: 18px 12px; }
+.nav-menu .el-menu-item { height: 48px; margin-bottom: 6px; border-radius: 9px; color: #98a5bc; }
+.nav-menu .el-menu-item:hover { color: #fff; background: rgba(255,255,255,.06); }
+.nav-menu .el-menu-item.is-active { color: #fff; background: linear-gradient(90deg, rgba(64,105,234,.95), rgba(50,86,206,.82)); box-shadow: 0 8px 22px rgba(22,56,165,.25); }
+.sidebar-foot { padding: 20px 24px; color: #77849b; font-size: 12px; border-top: 1px solid rgba(255,255,255,.06); }
+.status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #39c184; box-shadow: 0 0 0 4px rgba(57,193,132,.12); }
+
+.topbar { height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 0 34px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); }
+.topbar h1 { margin: 0; font-size: 20px; color: var(--ink); }
+.topbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.topbar-badge { padding: 7px 12px; border: 1px solid #dbe3ef; border-radius: 8px; color: #6a7790; background: #f8fafc; font-size: 12px; }
+.main-content { padding: 28px 34px 40px; }
+
+.page-card { background: white; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 5px 18px rgba(23, 38, 68, .035); overflow: hidden; }
+.page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid #edf0f5; }
+.filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.page-title-block h2 { margin: 0; font-size: 17px; }
+.page-title-block p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.table-wrap { padding: 4px 22px 12px; }
+.pagination-row { display: flex; justify-content: flex-end; padding: 16px 22px 20px; }
+.cell-muted { color: var(--muted); font-size: 12px; }
+.code-text { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: #35415a; word-break: break-all; }
+.command-rich { line-height: 1.7; color: #182239; font-synthesis: style; }
+.command-rich em, .command-rich i { font-style: italic !important; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.danger-hint { color: #d14343; }
+.empty-hint { color: #9aa5b5; }
+.dialog-tip { margin: -6px 0 18px; color: var(--muted); font-size: 12px; }
+
+.el-button--primary { --el-button-bg-color: var(--primary); --el-button-border-color: var(--primary); --el-button-hover-bg-color: #3565e7; --el-button-hover-border-color: #3565e7; }
+.el-table { --el-table-header-bg-color: #fafbfd; --el-table-border-color: #edf0f5; }
+.el-table th.el-table__cell { color: #637087; font-weight: 600; }
+.el-dialog { border-radius: 14px; overflow: hidden; }
+.el-dialog__header { padding: 20px 24px 14px; border-bottom: 1px solid #edf0f5; }
+.el-dialog__body { padding: 22px 24px; }
+.el-dialog__footer { padding: 14px 24px 20px; }
+.command-dialog .el-dialog__body { max-height: calc(92vh - 142px); overflow-y: auto; }
+
+@media (max-width: 1280px) {
+  .main-content { padding-left: 24px; padding-right: 24px; }
+  .topbar { padding-left: 24px; padding-right: 24px; }
+}
