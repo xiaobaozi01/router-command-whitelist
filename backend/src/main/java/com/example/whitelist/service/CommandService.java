@@ -82,6 +82,19 @@ public class CommandService {
         return assemble(List.of(requireCommand(id))).getFirst();
     }
 
+    public List<CommandResponse> listByScene(Long sceneId) {
+        List<Long> commandIds = commandSceneMapper.selectList(
+                        new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getSceneId, sceneId))
+                .stream().map(CommandScene::getCommandId).toList();
+        if (commandIds.isEmpty()) {
+            return List.of();
+        }
+        List<CommandRule> commands = commandMapper.selectList(new LambdaQueryWrapper<CommandRule>()
+                .in(CommandRule::getId, commandIds)
+                .orderByAsc(CommandRule::getExpressionText));
+        return assemble(commands);
+    }
+
     @Transactional
     public CommandResponse create(CommandRequest request) {
         ValidatedRequest validated = validateRequest(request);

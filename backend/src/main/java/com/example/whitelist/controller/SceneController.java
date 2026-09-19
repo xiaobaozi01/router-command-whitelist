@@ -4,12 +4,19 @@ import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.NameRequest;
 import com.example.whitelist.dto.OptionItem;
+import com.example.whitelist.dto.SceneExportRequest;
 import com.example.whitelist.dto.SceneResponse;
+import com.example.whitelist.service.SceneExportService;
 import com.example.whitelist.service.SceneService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/scenes")
 public class SceneController {
     private final SceneService sceneService;
+    private final SceneExportService sceneExportService;
 
-    public SceneController(SceneService sceneService) {
+    public SceneController(SceneService sceneService, SceneExportService sceneExportService) {
         this.sceneService = sceneService;
+        this.sceneExportService = sceneExportService;
     }
 
     @GetMapping
@@ -53,6 +62,19 @@ public class SceneController {
     @PostMapping
     public ApiResponse<SceneResponse> create(@Valid @RequestBody NameRequest request) {
         return ApiResponse.success(sceneService.create(request));
+    }
+
+    @PostMapping("/export")
+    public ResponseEntity<byte[]> export(@Valid @RequestBody SceneExportRequest request) {
+        SceneExportService.ExportArchive archive = sceneExportService.export(request.sceneIds());
+        String disposition = ContentDisposition.attachment()
+                .filename(archive.fileName(), StandardCharsets.UTF_8)
+                .build().toString();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .contentLength(archive.content().length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .body(archive.content());
     }
 
     @PutMapping("/{id}")

@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Download, Plus, Search } from '@element-plus/icons-vue'
 import { getErrorMessage, sceneApi } from '../api'
 import type { Scene } from '../types'
 import PageHeader from '../components/PageHeader.vue'
@@ -14,6 +14,8 @@ const total = ref(0)
 const query = reactive({ current: 1, size: 10, keyword: '' })
 const dialogVisible = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
+const selectedScenes = ref<Scene[]>([])
 const editingId = ref<number>()
 const form = reactive({ name: '' })
 const formRef = ref<FormInstance>()
@@ -56,6 +58,27 @@ const remove = async (row: Scene) => {
   }
 }
 
+const exportScenes = async () => {
+  if (!selectedScenes.value.length) return
+  exporting.value = true
+  try {
+    const response = await sceneApi.export(selectedScenes.value.map(scene => scene.id))
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const encodedName = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+    const fileName = encodedName ? decodeURIComponent(encodedName.replace(/^"|"$/g, '')) : '场景命令导出.zip'
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已导出 ${selectedScenes.value.length} 个场景`)
+  } catch (error) { ElMessage.error(getErrorMessage(error)) }
+  finally { exporting.value = false }
+}
+
 onMounted(load)
 </script>
 
@@ -63,7 +86,10 @@ onMounted(load)
   <section class="page-card">
     <div class="page-toolbar">
       <PageHeader title="场景列表" description="按业务用途组织命令，一条命令可以加入多个场景" />
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建场景</el-button>
+      <div class="scene-actions">
+        <el-button :icon="Download" :disabled="!selectedScenes.length" :loading="exporting" @click="exportScenes">导出场景</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">新建场景</el-button>
+      </div>
     </div>
     <div class="page-toolbar">
       <div class="filters">
@@ -74,7 +100,8 @@ onMounted(load)
       </div>
     </div>
     <div class="table-wrap">
-      <el-table v-loading="loading" :data="records" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
+      <el-table v-loading="loading" :data="records" row-key="id" @selection-change="selectedScenes = $event" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
+        <el-table-column type="selection" width="52" reserve-selection />
         <el-table-column prop="name" label="场景名称" min-width="240">
           <template #default="{ row }"><el-link type="primary" @click.stop="router.push(`/scenes/${row.id}`)">{{ row.name }}</el-link></template>
         </el-table-column>
@@ -104,3 +131,7 @@ onMounted(load)
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
   </el-dialog>
 </template>
+
+<style scoped>
+.scene-actions { display: flex; gap: 10px; }
+</style>

@@ -67,7 +67,7 @@ onMounted(() => { loadOptions(); load() })
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records" row-key="id">
         <el-table-column label="命令表达式" min-width="220"><template #default="{ row }"><div class="command-rich" v-html="row.expressionHtml"></div></template></el-table-column>
-        <el-table-column label="匹配正则" min-width="260" show-overflow-tooltip><template #default="{ row }"><div class="code-text">{{ row.regexTemplate }}</div></template></el-table-column>
+        <el-table-column label="匹配正则" min-width="260" show-overflow-tooltip><template #default="{ row }"><div class="code-text">{{ row.expandedRegex }}</div></template></el-table-column>
         <el-table-column label="所在视图" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.currentViews" :key="item.id" size="small" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>
         <el-table-column label="进入视图" min-width="120"><template #default="{ row }"><el-tag v-if="row.targetView" size="small" type="success" effect="plain">{{ row.targetView.name }}</el-tag><span v-else class="empty-hint">不切换</span></template></el-table-column>
         <el-table-column label="所属场景" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.scenes" :key="item.id" size="small" type="info" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>

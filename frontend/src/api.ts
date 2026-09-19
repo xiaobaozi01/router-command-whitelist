@@ -18,13 +18,22 @@ interface ApiResponse<T> {
   data: T
 }
 
-http.interceptors.response.use((response) => {
-  const body = response.data as Partial<ApiResponse<unknown>> | undefined
-  if (body && typeof body === 'object' && typeof body.code === 'number' && 'data' in body) {
-    response.data = body.data
-  }
-  return response
-})
+http.interceptors.response.use(
+  (response) => {
+    const body = response.data as Partial<ApiResponse<unknown>> | undefined
+    if (body && typeof body === 'object' && typeof body.code === 'number' && 'data' in body) {
+      response.data = body.data
+    }
+    return response
+  },
+  async (error) => {
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob && error.response.data.type.includes('json')) {
+      try { error.response.data = JSON.parse(await error.response.data.text()) }
+      catch { /* 保留原始响应，由统一错误处理展示网络错误 */ }
+    }
+    return Promise.reject(error)
+  },
+)
 
 export const getErrorMessage = (error: unknown) => {
   if (axios.isAxiosError(error)) {
@@ -42,6 +51,7 @@ export const sceneApi = {
   create: (name: string) => http.post<Scene>('/scenes', { name }),
   update: (id: number, name: string) => http.put<Scene>(`/scenes/${id}`, { name }),
   remove: (id: number) => http.delete(`/scenes/${id}`),
+  export: (sceneIds: number[]) => http.post<Blob>('/scenes/export', { sceneIds }, { responseType: 'blob', timeout: 60000 }),
 }
 
 export const viewApi = {
