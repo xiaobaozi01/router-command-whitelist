@@ -27,6 +27,41 @@ const saveSelection = () => {
   if (editor.value.contains(range.commonAncestorContainer)) savedRange = range.cloneRange()
 }
 
+const moveCaretAfterFormat = (command: 'bold' | 'italic' | 'strikeThrough') => {
+  const selection = window.getSelection()
+  if (!editor.value || !selection?.rangeCount) return
+
+  const tagNames = {
+    bold: ['B', 'STRONG'],
+    italic: ['I', 'EM'],
+    strikeThrough: ['S', 'STRIKE'],
+  }[command]
+  const range = selection.getRangeAt(0)
+  let node: Node | null = range.endContainer
+  let formattedElement: HTMLElement | undefined
+
+  while (node && node !== editor.value) {
+    if (node instanceof HTMLElement && tagNames.includes(node.tagName)) {
+      formattedElement = node
+    }
+    node = node.parentNode
+  }
+
+  const caret = document.createRange()
+  if (formattedElement?.parentNode) {
+    caret.setStartAfter(formattedElement)
+  } else {
+    caret.setStart(range.endContainer, range.endOffset)
+  }
+  caret.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(caret)
+  if (document.queryCommandState(command)) {
+    document.execCommand(command, false, '')
+  }
+  savedRange = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : caret.cloneRange()
+}
+
 const format = (command: 'bold' | 'italic' | 'strikeThrough') => {
   if (!editor.value) return
   editor.value.focus()
@@ -37,7 +72,7 @@ const format = (command: 'bold' | 'italic' | 'strikeThrough') => {
   }
   document.execCommand('styleWithCSS', false, 'false')
   document.execCommand(command, false, '')
-  saveSelection()
+  moveCaretAfterFormat(command)
   syncValue()
 }
 
