@@ -69,6 +69,11 @@ public class CommandController {
 
     @PostMapping("/regex-preview")
     public ApiResponse<RegexPreviewResponse> preview(@Valid @RequestBody RegexPreviewRequest request) {
-        return ApiResponse.success(regexEngineService.preview(request.regexTemplate(), request.testText()));
+        return ApiResponse.success(regexEngineService.preview(
+                request.regexTemplate(),
+                request.matchStart() == null || request.matchStart(),
+                request.matchEnd() == null || request.matchEnd(),
+                request.testText()
+        ));
     }
 }

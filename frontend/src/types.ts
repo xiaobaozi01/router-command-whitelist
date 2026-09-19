@@ -40,6 +40,8 @@ export interface CommandRule {
   expressionText: string
   description: string
   regexTemplate: string
+  matchStart: boolean
+  matchEnd: boolean
   expandedRegex: string
   currentViews: OptionItem[]
   targetView?: OptionItem
@@ -52,6 +54,8 @@ export interface CommandPayload {
   expressionHtml: string
   description: string
   regexTemplate: string
+  matchStart: boolean
+  matchEnd: boolean
   currentViewIds: number[]
   targetViewId?: number
   sceneIds: number[]

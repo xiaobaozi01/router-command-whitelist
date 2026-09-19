@@ -99,7 +99,7 @@ public class CommandService {
     public CommandResponse create(CommandRequest request) {
         ValidatedRequest validated = validateRequest(request);
         CommandRule command = new CommandRule();
-        apply(command, request, validated.expressionText());
+        apply(command, request, validated);
         command.setCreatedAt(LocalDateTime.now());
         command.setUpdatedAt(command.getCreatedAt());
         commandMapper.insert(command);
@@ -111,7 +111,7 @@ public class CommandService {
     public CommandResponse update(Long id, CommandRequest request) {
         CommandRule command = requireCommand(id);
         ValidatedRequest validated = validateRequest(request);
-        apply(command, request, validated.expressionText());
+        apply(command, request, validated);
         command.setUpdatedAt(LocalDateTime.now());
         commandMapper.updateById(command);
         commandSceneMapper.delete(new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getCommandId, id));
@@ -136,7 +136,9 @@ public class CommandService {
         if (expressionText.length() > 1000) {
             throw new BusinessException(400, "命令行表达式不能超过1000个字符");
         }
-        regexEngineService.expandAndValidate(request.regexTemplate());
+        boolean matchStart = request.matchStart() == null || request.matchStart();
+        boolean matchEnd = request.matchEnd() == null || request.matchEnd();
+        regexEngineService.expandAndValidate(request.regexTemplate(), matchStart, matchEnd);
 
         Set<Long> sceneIds = new LinkedHashSet<>(request.sceneIds());
         if (sceneMapper.selectByIds(sceneIds).size() != sceneIds.size()) {
@@ -149,14 +151,16 @@ public class CommandService {
         if (request.targetViewId() != null && viewMapper.selectById(request.targetViewId()) == null) {
             throw new BusinessException(400, "选择的目标视图不存在或已被删除");
         }
-        return new ValidatedRequest(expressionText, sceneIds, currentViewIds);
+        return new ValidatedRequest(expressionText, sceneIds, currentViewIds, matchStart, matchEnd);
     }
 
-    private void apply(CommandRule command, CommandRequest request, String expressionText) {
+    private void apply(CommandRule command, CommandRequest request, ValidatedRequest validated) {
         command.setExpressionHtml(request.expressionHtml());
-        command.setExpressionText(expressionText);
+        command.setExpressionText(validated.expressionText());
         command.setDescription(request.description() == null ? "" : request.description().trim());
         command.setRegexTemplate(request.regexTemplate());
+        command.setMatchStart(validated.matchStart());
+        command.setMatchEnd(validated.matchEnd());
         command.setTargetViewId(request.targetViewId());
     }
 
@@ -202,9 +206,12 @@ public class CommandService {
         List<CommandResponse> result = new ArrayList<>();
         for (CommandRule command : commands) {
             ViewDefinition target = command.getTargetViewId() == null ? null : views.get(command.getTargetViewId());
+            boolean matchStart = command.getMatchStart() == null || command.getMatchStart();
+            boolean matchEnd = command.getMatchEnd() == null || command.getMatchEnd();
             result.add(new CommandResponse(
                     command.getId(), command.getExpressionHtml(), command.getExpressionText(), command.getDescription(),
-                    command.getRegexTemplate(), regexEngineService.expandAndValidate(command.getRegexTemplate()),
+                    command.getRegexTemplate(), matchStart, matchEnd,
+                    regexEngineService.expandAndValidate(command.getRegexTemplate(), matchStart, matchEnd),
                     commandViews.getOrDefault(command.getId(), List.of()),
                     target == null ? null : toOption(target),
                     commandScenes.getOrDefault(command.getId(), List.of()),
@@ -222,6 +229,12 @@ public class CommandService {
         return new OptionItem(view.getId(), view.getName());
     }
 
-    private record ValidatedRequest(String expressionText, Set<Long> sceneIds, Set<Long> currentViewIds) {
+    private record ValidatedRequest(
+            String expressionText,
+            Set<Long> sceneIds,
+            Set<Long> currentViewIds,
+            boolean matchStart,
+            boolean matchEnd
+    ) {
     }
 }

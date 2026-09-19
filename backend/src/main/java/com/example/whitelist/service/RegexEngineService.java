@@ -54,9 +54,21 @@ public class RegexEngineService {
         return expanded.toString();
     }
 
-    public RegexPreviewResponse preview(String template, String testText) {
+    public String expandAndValidate(String template, boolean matchStart, boolean matchEnd) {
+        String expanded = expandAndValidate(template);
+        String finalRegex = applyBoundaries(expanded, matchStart, matchEnd);
+        compile(finalRegex, "正则表达式语法错误：");
+        return finalRegex;
+    }
+
+    public RegexPreviewResponse preview(
+            String template,
+            boolean matchStart,
+            boolean matchEnd,
+            String testText
+    ) {
         try {
-            String expanded = expandAndValidate(template);
+            String expanded = expandAndValidate(template, matchStart, matchEnd);
             Pattern pattern = Pattern.compile(expanded);
             List<RegexPreviewResponse.TestLineResult> results = new ArrayList<>();
             if (testText != null && !testText.isEmpty()) {
@@ -65,7 +77,7 @@ public class RegexEngineService {
                     results.add(new RegexPreviewResponse.TestLineResult(
                             index + 1,
                             lines[index],
-                            pattern.matcher(lines[index]).matches()
+                            pattern.matcher(lines[index]).find()
                     ));
                 }
             }
@@ -73,6 +85,13 @@ public class RegexEngineService {
         } catch (BusinessException exception) {
             return new RegexPreviewResponse(false, null, exception.getMessage(), List.of());
         }
+    }
+
+    private String applyBoundaries(String regex, boolean matchStart, boolean matchEnd) {
+        if (!matchStart && !matchEnd) {
+            return regex;
+        }
+        return (matchStart ? "^" : "") + "(?:" + regex + ")" + (matchEnd ? "$" : "");
     }
 
     private Pattern compile(String pattern, String prefix) {

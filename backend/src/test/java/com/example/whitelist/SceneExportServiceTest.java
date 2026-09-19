@@ -58,7 +58,8 @@ class SceneExportServiceTest {
                         assertThat(sheet.getRow(1).getCell(1).getStringCellValue()).isEqualTo("查看版本");
                         assertThat(sheet.getRow(1).getCell(2).getStringCellValue()).isEqualTo("接口视图、系统视图");
                         assertThat(sheet.getRow(1).getCell(3).getStringCellValue()).isEqualTo("用户视图");
-                        assertThat(sheet.getRow(1).getCell(4).getStringCellValue()).isEqualTo("display (?:\\S+)");
+                        assertThat(sheet.getRow(1).getCell(4).getStringCellValue())
+                                .isEqualTo("^(?:display (?:\\S+))$");
                         assertThat(sheet.getRow(1).getCell(5).getStringCellValue()).isEqualTo("HUAWEI");
                         assertCommandRichText((XSSFRichTextString) sheet.getRow(1).getCell(0).getRichStringCellValue());
                     }
@@ -79,7 +80,8 @@ class SceneExportServiceTest {
         return new CommandResponse(
                 1L,
                 "<strong>display</strong> <em>version</em> <s>old</s> <strong><em><s>all</s></em></strong>",
-                "display version old all", "查看版本", "display ${WORD}", "display (?:\\S+)",
+                "display version old all", "查看版本", "display ${WORD}", true, true,
+                "^(?:display (?:\\S+))$",
                 List.of(new OptionItem(2L, "系统视图"), new OptionItem(1L, "接口视图")),
                 new OptionItem(3L, "用户视图"), List.of(new OptionItem(1L, "日常巡检")),
                 LocalDateTime.now(), LocalDateTime.now()

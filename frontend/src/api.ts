@@ -78,6 +78,6 @@ export const commandApi = {
   create: (payload: CommandPayload) => http.post<CommandRule>('/commands', payload),
   update: (id: number, payload: CommandPayload) => http.put<CommandRule>(`/commands/${id}`, payload),
   remove: (id: number) => http.delete(`/commands/${id}`),
-  preview: (regexTemplate: string, testText: string) =>
-    http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, testText }),
+  preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
+    http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
 }

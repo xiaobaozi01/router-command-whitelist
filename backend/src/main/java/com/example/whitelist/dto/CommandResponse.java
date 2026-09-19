@@ -9,6 +9,8 @@ public record CommandResponse(
         String expressionText,
         String description,
         String regexTemplate,
+        boolean matchStart,
+        boolean matchEnd,
         String expandedRegex,
         List<OptionItem> currentViews,
         OptionItem targetView,

@@ -22,7 +22,17 @@ const previewing = ref(false)
 let previewTimer: number | undefined
 
 const form = reactive<CommandPayload & { testText: string }>({
-  expressionHtml: '', description: '', regexTemplate: '', currentViewIds: [], targetViewId: undefined, sceneIds: [], testText: '',
+  expressionHtml: '', description: '', regexTemplate: '', matchStart: true, matchEnd: true,
+  currentViewIds: [], targetViewId: undefined, sceneIds: [], testText: '',
+})
+
+const hasManualBoundary = computed(() => {
+  const template = form.regexTemplate
+  if (template.startsWith('^')) return true
+  if (!template.endsWith('$')) return false
+  let backslashes = 0
+  for (let index = template.length - 2; index >= 0 && template[index] === '\\'; index--) backslashes++
+  return backslashes % 2 === 0
 })
 
 const rules: FormRules = {
@@ -45,6 +55,8 @@ const resetForm = () => {
     expressionHtml: command?.expressionHtml ?? '',
     description: command?.description ?? '',
     regexTemplate: command?.regexTemplate ?? '',
+    matchStart: command?.matchStart ?? true,
+    matchEnd: command?.matchEnd ?? true,
     currentViewIds: command?.currentViews.map(item => item.id) ?? [],
     targetViewId: command?.targetView?.id,
     sceneIds: command?.scenes.map(item => item.id) ?? (props.defaultSceneId ? [props.defaultSceneId] : []),
@@ -74,7 +86,7 @@ const runPreview = async () => {
     return
   }
   previewing.value = true
-  try { preview.value = (await commandApi.preview(form.regexTemplate, form.testText)).data }
+  try { preview.value = (await commandApi.preview(form.regexTemplate, form.matchStart, form.matchEnd, form.testText)).data }
   catch (error) { preview.value = { valid: false, error: getErrorMessage(error), results: [] } }
   finally { previewing.value = false }
 }
@@ -109,6 +121,8 @@ const save = async () => {
       expressionHtml: form.expressionHtml,
       description: form.description,
       regexTemplate: form.regexTemplate,
+      matchStart: form.matchStart,
+      matchEnd: form.matchEnd,
       currentViewIds: form.currentViewIds,
       targetViewId: form.targetViewId,
       sceneIds: form.sceneIds,
@@ -173,7 +187,13 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
         </div>
 
         <div class="regex-section">
-          <div class="section-heading"><strong>匹配正则</strong><span>Java 正则 · 整行匹配</span></div>
+          <div class="section-heading"><strong>匹配正则</strong><span>Java 正则 · 按边界设置匹配</span></div>
+          <div class="boundary-options">
+            <span>匹配边界</span>
+            <el-checkbox v-model="form.matchStart" @change="schedulePreview">开头匹配 <code>^</code></el-checkbox>
+            <el-checkbox v-model="form.matchEnd" @change="schedulePreview">结尾匹配 <code>$</code></el-checkbox>
+            <small>默认首尾都匹配</small>
+          </div>
           <div v-if="commonFragments.length" class="quick-fragments">
             <span>常用片段</span>
             <button v-for="item in commonFragments" :key="item.id" type="button" @click="insertFragment(item)">{{ '${' + item.name + '}' }}</button>
@@ -181,6 +201,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
           <el-form-item prop="regexTemplate" class="regex-form-item">
             <textarea ref="regexTextarea" v-model="form.regexTemplate" class="regex-textarea" spellcheck="false" placeholder="例如：display ip routing-table ${IPV4}" @input="schedulePreview"></textarea>
           </el-form-item>
+          <div v-if="hasManualBoundary" class="boundary-warning">正则模板中不需要手动输入 ^ 或 $，请使用上方的匹配边界选项。</div>
 
           <div class="preview-block" :class="{ invalid: preview.error }">
             <div class="preview-label">
@@ -235,6 +256,11 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .section-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
 .section-heading strong { font-size: 14px; }
 .section-heading span { color: #8a96a8; font-size: 11px; }
+.boundary-options { display: flex; align-items: center; gap: 16px; min-height: 38px; margin-bottom: 10px; padding: 5px 10px; border: 1px solid #e2e8f1; border-radius: 7px; background: #fafbfd; }
+.boundary-options > span { color: #657289; font-size: 12px; font-weight: 600; }
+.boundary-options code { margin-left: 3px; color: #2856d6; font: 600 12px "SFMono-Regular", Consolas, monospace; }
+.boundary-options small { margin-left: auto; color: #929dad; }
+.boundary-warning { margin: -2px 0 10px; color: #c47a18; font-size: 11px; }
 .quick-fragments { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 9px; }
 .quick-fragments > span { margin-right: 4px; color: #78849a; font-size: 11px; }
 .quick-fragments button { padding: 4px 8px; border: 1px solid #dce4f2; border-radius: 5px; color: #3157ba; background: #f5f8ff; font: 11px "SFMono-Regular", Consolas, monospace; cursor: pointer; }

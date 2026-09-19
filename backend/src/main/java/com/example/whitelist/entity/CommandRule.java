@@ -15,6 +15,8 @@ public class CommandRule {
     private String expressionText;
     private String description;
     private String regexTemplate;
+    private Boolean matchStart;
+    private Boolean matchEnd;
     private Long targetViewId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
