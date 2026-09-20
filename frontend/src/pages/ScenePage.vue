@@ -93,7 +93,7 @@ onMounted(load)
     </div>
     <div class="page-toolbar">
       <div class="filters">
-        <el-input v-model="query.keyword" clearable placeholder="搜索场景名称" style="width: 280px" @keyup.enter="search">
+        <el-input v-model="query.keyword" clearable spellcheck="false" placeholder="搜索场景名称" style="width: 280px" @keyup.enter="search">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button @click="search">查询</el-button>
@@ -125,7 +125,7 @@ onMounted(load)
   <el-dialog v-model="dialogVisible" :title="editingId ? '编辑场景' : '新建场景'" width="460px" destroy-on-close>
     <el-form ref="formRef" :model="form" label-position="top">
       <el-form-item label="场景名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入场景名称' }]">
-        <el-input v-model="form.name" maxlength="100" show-word-limit placeholder="例如：日常巡检" @keyup.enter="save" />
+        <el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：日常巡检" @keyup.enter="save" />
       </el-form-item>
     </el-form>
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>

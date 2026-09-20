@@ -114,6 +114,7 @@ watch(() => props.modelValue, async (value) => {
       ref="editor"
       class="rich-content"
       contenteditable="true"
+      spellcheck="false"
       data-placeholder="例如：display interface interface-name"
       @input="syncValue"
       @blur="normalizeEditor"

@@ -49,7 +49,7 @@ onMounted(load)
     </div>
     <div class="page-toolbar">
       <div class="filters">
-        <el-input v-model="query.keyword" clearable placeholder="搜索视图名称" style="width: 280px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="query.keyword" clearable spellcheck="false" placeholder="搜索视图名称" style="width: 280px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-button @click="search">查询</el-button>
       </div>
     </div>
@@ -64,7 +64,7 @@ onMounted(load)
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
   </section>
   <el-dialog v-model="dialogVisible" :title="editingId ? '编辑视图' : '新建视图'" width="460px" destroy-on-close>
-    <el-form ref="formRef" :model="form" label-position="top"><el-form-item label="视图名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入视图名称' }]"><el-input v-model="form.name" maxlength="100" show-word-limit placeholder="例如：系统视图" @keyup.enter="save" /></el-form-item></el-form>
+    <el-form ref="formRef" :model="form" label-position="top"><el-form-item label="视图名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入视图名称' }]"><el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：系统视图" @keyup.enter="save" /></el-form-item></el-form>
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
   </el-dialog>
 </template>

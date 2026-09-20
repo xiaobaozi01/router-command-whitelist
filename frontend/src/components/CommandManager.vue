@@ -56,7 +56,7 @@ onMounted(() => { loadOptions(); load() })
     </div>
     <div class="page-toolbar filter-toolbar">
       <div class="filters">
-        <el-input v-model="query.keyword" clearable placeholder="搜索命令表达式或描述" style="width: 250px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="query.keyword" clearable spellcheck="false" placeholder="搜索命令表达式或描述" style="width: 250px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-select v-model="query.currentViewId" clearable filterable placeholder="所在视图" style="width: 150px"><el-option v-for="item in views" :key="item.id" :label="item.name" :value="item.id" /></el-select>
         <el-select v-model="query.targetViewId" clearable filterable placeholder="进入视图" style="width: 150px"><el-option v-for="item in views" :key="item.id" :label="item.name" :value="item.id" /></el-select>
         <el-select v-if="!sceneId" v-model="query.sceneId" clearable filterable placeholder="所属场景" style="width: 160px"><el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" /></el-select>

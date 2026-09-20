@@ -165,6 +165,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
               :rows="3"
               maxlength="1000"
               show-word-limit
+              spellcheck="false"
               resize="vertical"
               placeholder="请输入命令行描述"
             />
@@ -216,7 +217,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 
           <div class="test-panel">
             <div class="section-heading"><strong>多行匹配测试</strong><span>每行作为一条独立命令</span></div>
-            <el-input v-model="form.testText" type="textarea" :rows="4" resize="vertical" placeholder="每行输入一条待测试命令" @input="schedulePreview" />
+            <el-input v-model="form.testText" type="textarea" :rows="4" resize="vertical" spellcheck="false" placeholder="每行输入一条待测试命令" @input="schedulePreview" />
             <div v-if="preview.results.length" class="test-results">
               <div v-for="item in preview.results" :key="item.lineNumber" class="test-row">
                 <span class="line-number">{{ item.lineNumber }}</span>
@@ -230,7 +231,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 
       <aside class="fragment-library">
         <div class="library-title"><strong>正则片段库</strong><span>{{ fragments.length }} 个片段</span></div>
-        <el-input v-model="fragmentKeyword" clearable placeholder="搜索片段" :prefix-icon="Search" />
+        <el-input v-model="fragmentKeyword" clearable spellcheck="false" placeholder="搜索片段" :prefix-icon="Search" />
         <div class="fragment-scroll">
           <button v-for="item in filteredFragments" :key="item.id" type="button" class="fragment-card" @click="insertFragment(item)">
             <span><code>{{ '${' + item.name + '}' }}</code><el-tag v-if="item.common" size="small" type="success" effect="plain">常用</el-tag></span>

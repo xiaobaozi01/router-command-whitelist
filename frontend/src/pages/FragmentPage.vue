@@ -51,7 +51,7 @@ onMounted(load)
     </div>
     <div class="page-toolbar">
       <div class="filters">
-        <el-input v-model="query.keyword" clearable placeholder="搜索片段名称或描述" style="width: 320px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="query.keyword" clearable spellcheck="false" placeholder="搜索片段名称或描述" style="width: 320px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-button @click="search">查询</el-button>
       </div>
     </div>
@@ -71,10 +71,10 @@ onMounted(load)
     <p v-if="editingId" class="dialog-tip">修改内容会立即影响 {{ editingReferenceCount }} 条引用命令；被引用时不能修改名称。</p>
     <el-form ref="formRef" :model="form" label-position="top">
       <el-form-item label="片段名称" prop="name" :rules="[{ required: true, message: '请输入片段名称' }, { pattern: /^[A-Z][A-Z0-9_]*$/, message: '只能使用大写字母、数字和下划线，且以字母开头' }]">
-        <el-input v-model="form.name" maxlength="64" placeholder="例如：INTERFACE_NAME"><template #prepend>${</template><template #append>}</template></el-input>
+        <el-input v-model="form.name" maxlength="64" spellcheck="false" placeholder="例如：INTERFACE_NAME"><template #prepend>${</template><template #append>}</template></el-input>
       </el-form-item>
-      <el-form-item label="片段描述" prop="description" :rules="[{ required: true, whitespace: true, message: '请输入片段描述' }]"><el-input v-model="form.description" maxlength="500" show-word-limit placeholder="说明该片段可以匹配的内容" /></el-form-item>
-      <el-form-item label="正则内容" prop="pattern" :rules="[{ required: true, message: '请输入正则内容' }]"><el-input v-model="form.pattern" type="textarea" :rows="5" resize="vertical" placeholder="Java 正则语法；不允许包含其他 ${片段}" class="mono-input" /></el-form-item>
+      <el-form-item label="片段描述" prop="description" :rules="[{ required: true, whitespace: true, message: '请输入片段描述' }]"><el-input v-model="form.description" maxlength="500" show-word-limit spellcheck="false" placeholder="说明该片段可以匹配的内容" /></el-form-item>
+      <el-form-item label="正则内容" prop="pattern" :rules="[{ required: true, message: '请输入正则内容' }]"><el-input v-model="form.pattern" type="textarea" :rows="5" resize="vertical" spellcheck="false" placeholder="Java 正则语法；不允许包含其他 ${片段}" class="mono-input" /></el-form-item>
       <el-form-item><el-checkbox v-model="form.common">显示在命令编辑器的常用片段区</el-checkbox></el-form-item>
     </el-form>
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
