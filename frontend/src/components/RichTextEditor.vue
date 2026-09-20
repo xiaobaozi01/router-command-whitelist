@@ -1,128 +1,84 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { EditorContent, useEditor } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
-const editor = ref<HTMLDivElement>()
-let savedRange: Range | undefined
+const empty = ref(true)
 
-const normalizedHtml = (html: string) => html
-  .replace(/<b(?:\s[^>]*)?>/gi, '<strong>')
-  .replace(/<\/b>/gi, '</strong>')
-  .replace(/<i(?:\s[^>]*)?>/gi, '<em>')
-  .replace(/<\/i>/gi, '</em>')
-  .replace(/<strike(?:\s[^>]*)?>/gi, '<s>')
-  .replace(/<\/strike>/gi, '</s>')
-  .replace(/&nbsp;/gi, ' ')
-
-const syncValue = () => {
-  if (!editor.value) return
-  emit('update:modelValue', normalizedHtml(editor.value.innerHTML))
-}
-
-const saveSelection = () => {
-  const selection = window.getSelection()
-  if (!editor.value || !selection?.rangeCount) return
-  const range = selection.getRangeAt(0)
-  if (editor.value.contains(range.commonAncestorContainer)) savedRange = range.cloneRange()
-}
-
-const moveCaretAfterFormat = (command: 'bold' | 'italic' | 'strikeThrough') => {
-  const selection = window.getSelection()
-  if (!editor.value || !selection?.rangeCount) return
-
-  const tagNames = {
-    bold: ['B', 'STRONG'],
-    italic: ['I', 'EM'],
-    strikeThrough: ['S', 'STRIKE'],
-  }[command]
-  const range = selection.getRangeAt(0)
-  let node: Node | null = range.endContainer
-  let formattedElement: HTMLElement | undefined
-
-  while (node && node !== editor.value) {
-    if (node instanceof HTMLElement && tagNames.includes(node.tagName)) {
-      formattedElement = node
-    }
-    node = node.parentNode
-  }
-
-  const caret = document.createRange()
-  if (formattedElement?.parentNode) {
-    caret.setStartAfter(formattedElement)
-  } else {
-    caret.setStart(range.endContainer, range.endOffset)
-  }
-  caret.collapse(true)
-  selection.removeAllRanges()
-  selection.addRange(caret)
-  if (document.queryCommandState(command)) {
-    document.execCommand(command, false, '')
-  }
-  savedRange = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : caret.cloneRange()
-}
-
-const format = (command: 'bold' | 'italic' | 'strikeThrough') => {
-  if (!editor.value) return
-  editor.value.focus()
-  if (savedRange) {
-    const selection = window.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(savedRange)
-  }
-  document.execCommand('styleWithCSS', false, 'false')
-  document.execCommand(command, false, '')
-  moveCaretAfterFormat(command)
-  syncValue()
-}
-
-const onPaste = (event: ClipboardEvent) => {
-  event.preventDefault()
-  const text = (event.clipboardData?.getData('text/plain') ?? '').replace(/\s*\r?\n\s*/g, ' ')
-  document.execCommand('insertText', false, text)
-  syncValue()
-}
-
-const normalizeEditor = () => {
-  if (!editor.value) return
-  const html = normalizedHtml(editor.value.innerHTML)
-  if (editor.value.innerHTML !== html) editor.value.innerHTML = html
-  emit('update:modelValue', html)
-}
-
-onMounted(() => {
-  if (editor.value) editor.value.innerHTML = props.modelValue || ''
+const editor = useEditor({
+  content: props.modelValue || '',
+  extensions: [
+    StarterKit.configure({
+      blockquote: false,
+      bulletList: false,
+      code: false,
+      codeBlock: false,
+      hardBreak: false,
+      heading: false,
+      horizontalRule: false,
+      link: false,
+      listItem: false,
+      listKeymap: false,
+      orderedList: false,
+      trailingNode: false,
+      underline: false,
+    }),
+  ],
+  editorProps: {
+    attributes: {
+      spellcheck: 'false',
+      'aria-label': '命令行表达式',
+    },
+    handleKeyDown: (_view, event) => event.key === 'Enter',
+    handlePaste: (view, event) => {
+      const text = event.clipboardData?.getData('text/plain')
+      if (text === undefined) return false
+      view.dispatch(view.state.tr.insertText(text.replace(/\s*\r?\n\s*/g, ' ')))
+      return true
+    },
+  },
+  onCreate: ({ editor: instance }) => {
+    empty.value = instance.isEmpty
+  },
+  onUpdate: ({ editor: instance }) => {
+    empty.value = instance.isEmpty
+    emit('update:modelValue', instance.isEmpty ? '' : instance.getHTML())
+  },
 })
 
-watch(() => props.modelValue, async (value) => {
-  await nextTick()
-  if (editor.value && document.activeElement !== editor.value && editor.value.innerHTML !== value) {
-    editor.value.innerHTML = value || ''
-  }
+const toggleFormat = (format: 'bold' | 'italic' | 'strike') => {
+  const instance = editor.value
+  if (!instance) return
+
+  if (format === 'bold') instance.chain().focus().toggleBold().run()
+  if (format === 'italic') instance.chain().focus().toggleItalic().run()
+  if (format === 'strike') instance.chain().focus().toggleStrike().run()
+}
+
+watch(() => props.modelValue, (value) => {
+  const instance = editor.value
+  if (!instance) return
+  const currentHtml = instance.isEmpty ? '' : instance.getHTML()
+  if (currentHtml === value) return
+  instance.commands.setContent(value || '', { emitUpdate: false })
+  empty.value = instance.isEmpty
 })
 </script>
 
 <template>
   <div class="rich-editor">
     <div class="rich-toolbar" @mousedown.prevent>
-      <button type="button" title="加粗" @click="format('bold')"><strong>B</strong></button>
-      <button type="button" title="斜体" @click="format('italic')"><em>I</em></button>
-      <button type="button" title="删除线" @click="format('strikeThrough')"><s>S</s></button>
+      <button type="button" title="加粗" :class="{ active: editor?.isActive('bold') }" @click="toggleFormat('bold')"><strong>B</strong></button>
+      <button type="button" title="斜体" :class="{ active: editor?.isActive('italic') }" @click="toggleFormat('italic')"><em>I</em></button>
+      <button type="button" title="删除线" :class="{ active: editor?.isActive('strike') }" @click="toggleFormat('strike')"><s>S</s></button>
       <span>选中文字后应用样式</span>
     </div>
-    <div
-      ref="editor"
-      class="rich-content"
-      contenteditable="true"
-      spellcheck="false"
-      data-placeholder="例如：display interface interface-name"
-      @input="syncValue"
-      @blur="normalizeEditor"
-      @paste="onPaste"
-      @mouseup="saveSelection"
-      @keyup="saveSelection"
-      @keydown.enter.prevent
-    ></div>
+    <div class="rich-content">
+      <EditorContent :editor="editor" />
+      <span v-if="empty" class="rich-placeholder">例如：display interface interface-name</span>
+    </div>
   </div>
 </template>
 
@@ -131,9 +87,11 @@ watch(() => props.modelValue, async (value) => {
 .rich-editor:focus-within { border-color: #3d67dc; box-shadow: 0 0 0 1px rgba(61,103,220,.08); }
 .rich-toolbar { height: 38px; display: flex; align-items: center; gap: 5px; padding: 0 9px; border-bottom: 1px solid #e7ebf1; background: #f8fafc; }
 .rich-toolbar button { width: 28px; height: 27px; padding: 0; border: 1px solid transparent; border-radius: 5px; color: #344158; background: transparent; cursor: pointer; }
-.rich-toolbar button:hover { color: #2856d6; border-color: #d7e0f4; background: white; }
+.rich-toolbar button:hover, .rich-toolbar button.active { color: #2856d6; border-color: #b8c8ef; background: #edf2ff; }
 .rich-toolbar span { margin-left: 5px; color: #929dad; font-size: 11px; }
-.rich-content { min-height: 78px; padding: 10px 12px; outline: none; line-height: 1.65; color: #263149; overflow-wrap: anywhere; font-synthesis: style; }
-.rich-content:empty::before { content: attr(data-placeholder); color: #a8abb2; pointer-events: none; }
-.rich-content :deep(em), .rich-content :deep(i) { font-style: italic !important; }
+.rich-content { position: relative; }
+.rich-content :deep(.tiptap) { min-height: 78px; padding: 10px 12px; outline: none; line-height: 1.65; color: #263149; overflow-wrap: anywhere; font-synthesis: style; }
+.rich-content :deep(.tiptap p) { margin: 0; }
+.rich-content :deep(.tiptap em), .rich-content :deep(.tiptap i) { font-style: italic !important; }
+.rich-placeholder { position: absolute; top: 10px; left: 12px; color: #a8abb2; pointer-events: none; }
 </style>

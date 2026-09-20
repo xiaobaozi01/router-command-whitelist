@@ -53,6 +53,7 @@ button, input, textarea { font: inherit; }
 .cell-muted { color: var(--muted); font-size: 12px; }
 .code-text { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: #35415a; word-break: break-all; }
 .command-rich { line-height: 1.7; color: #182239; font-synthesis: style; }
+.command-rich p { margin: 0; }
 .command-rich em, .command-rich i { font-style: italic !important; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
 .danger-hint { color: #d14343; }

@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- 前端：Vue 3、TypeScript、Vite、Element Plus
+- 前端：Vue 3、TypeScript、Vite、Element Plus、TipTap
 - 后端：JDK 21、Spring Boot 3.5、MyBatis-Plus
 - 数据库：H2（MySQL 兼容模式），Flyway 管理表结构
 

@@ -79,7 +79,7 @@ class SceneExportServiceTest {
     private CommandResponse command() {
         return new CommandResponse(
                 1L,
-                "<strong>display</strong> <em>version</em> <s>old</s> <strong><em><s>all</s></em></strong>",
+                "<p><strong>display</strong> <em>version</em> <s>old</s> <strong><em><s>all</s></em></strong></p>",
                 "display version old all", "查看版本", "display ${WORD}", true, true,
                 "^(?:display (?:\\S+))$",
                 List.of(new OptionItem(2L, "系统视图"), new OptionItem(1L, "接口视图")),
