@@ -181,7 +181,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
             </el-select>
           </el-form-item>
           <el-form-item label="所属场景" prop="sceneIds" class="wide-field">
-            <el-select v-model="form.sceneIds" multiple filterable collapse-tags placeholder="可多选" style="width: 100%">
+            <el-select v-model="form.sceneIds" multiple filterable placeholder="可多选" style="width: 100%">
               <el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
@@ -249,8 +249,8 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 </template>
 
 <style scoped>
-.command-editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 22px; min-height: 620px; }
-.command-form { min-width: 0; }
+.command-editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 22px; height: 100%; min-height: 0; }
+.command-form { min-width: 0; padding-right: 8px; overflow-y: auto; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .wide-field { grid-column: 1 / -1; }
 .regex-section { margin-top: 2px; padding-top: 18px; border-top: 1px solid #e8edf3; }
@@ -281,11 +281,11 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .test-row:last-child { border-bottom: 0; }
 .line-number { color: #9aa5b5; font: 11px "SFMono-Regular", Consolas, monospace; text-align: right; }
 .test-row code { overflow: hidden; color: #3b465a; font: 11px "SFMono-Regular", Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
-.fragment-library { min-width: 0; padding-left: 20px; border-left: 1px solid #e5eaf1; }
+.fragment-library { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding-left: 20px; border-left: 1px solid #e5eaf1; }
 .library-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .library-title strong { font-size: 14px; }
 .library-title span { color: #8a96a8; font-size: 11px; }
-.fragment-scroll { height: 555px; margin-top: 10px; padding-right: 3px; overflow-y: auto; }
+.fragment-scroll { flex: 1; min-height: 0; margin-top: 10px; padding-right: 3px; overflow-y: auto; }
 .fragment-card { display: block; width: 100%; padding: 10px; margin-bottom: 7px; border: 1px solid #e2e8f1; border-radius: 8px; text-align: left; background: #fff; cursor: pointer; }
 .fragment-card:hover { border-color: #9db1e8; background: #f8faff; }
 .fragment-card > span { display: flex; align-items: center; justify-content: space-between; gap: 6px; }

@@ -67,7 +67,7 @@ button, input, textarea { font: inherit; }
 .el-dialog__header { padding: 20px 24px 14px; border-bottom: 1px solid #edf0f5; }
 .el-dialog__body { padding: 22px 24px; }
 .el-dialog__footer { padding: 14px 24px 20px; }
-.command-dialog .el-dialog__body { max-height: calc(92vh - 142px); overflow-y: auto; }
+.command-dialog .el-dialog__body { height: calc(92vh - 142px); overflow: hidden; }
 
 @media (max-width: 1280px) {
   .main-content { padding-left: 24px; padding-right: 24px; }

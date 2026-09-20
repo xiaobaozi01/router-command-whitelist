@@ -70,7 +70,7 @@ onMounted(() => { loadOptions(); load() })
         <el-table-column label="匹配正则" min-width="260" show-overflow-tooltip><template #default="{ row }"><div class="code-text">{{ row.expandedRegex }}</div></template></el-table-column>
         <el-table-column label="所在视图" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.currentViews" :key="item.id" size="small" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>
         <el-table-column label="进入视图" min-width="120"><template #default="{ row }"><el-tag v-if="row.targetView" size="small" type="success" effect="plain">{{ row.targetView.name }}</el-tag><span v-else class="empty-hint">不切换</span></template></el-table-column>
-        <el-table-column label="所属场景" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.scenes" :key="item.id" size="small" type="info" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>
+        <el-table-column label="所属场景" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.scenes" :key="item.id" class="scene-tag" size="small" effect="light">{{ item.name }}</el-tag></div></template></el-table-column>
         <el-table-column label="操作" width="140" fixed="right" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>
@@ -82,4 +82,5 @@ onMounted(() => { loadOptions(); load() })
 
 <style scoped>
 .filter-toolbar { padding-top: 14px; padding-bottom: 14px; }
+.scene-tag { --el-tag-bg-color: #f3efff; --el-tag-border-color: #ddd3fa; --el-tag-text-color: #6748ad; }
 </style>
