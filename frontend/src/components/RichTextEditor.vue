@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import { isInternalRichText, writeInternalRichText } from '../internalRichClipboard'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -32,7 +33,18 @@ const editor = useEditor({
       'aria-label': '命令行表达式',
     },
     handleKeyDown: (_view, event) => event.key === 'Enter',
+    handleDOMEvents: {
+      copy: (view, event) => {
+        const clipboard = event.clipboardData
+        if (!clipboard || view.state.selection.empty) return false
+        const { dom, text } = view.serializeForClipboard(view.state.selection.content())
+        writeInternalRichText(clipboard, dom.innerHTML, text)
+        event.preventDefault()
+        return true
+      },
+    },
     handlePaste: (view, event) => {
+      if (event.clipboardData && isInternalRichText(event.clipboardData)) return false
       const text = event.clipboardData?.getData('text/plain')
       if (text === undefined) return false
       view.dispatch(view.state.tr.insertText(text.replace(/\s*\r?\n\s*/g, ' ')))
