@@ -31,11 +31,28 @@ public class RegexEngineService {
     }
 
     public String expandAndValidate(String template) {
+        return expandAndValidate(template, loadFragments());
+    }
+
+    public String expandAndValidate(String template, boolean matchStart, boolean matchEnd) {
+        return expandAndValidate(template, matchStart, matchEnd, loadFragments());
+    }
+
+    public RegexExpander createExpander() {
+        Map<String, String> fragments = loadFragments();
+        return (template, matchStart, matchEnd) -> expandAndValidate(
+                template, matchStart, matchEnd, fragments);
+    }
+
+    private Map<String, String> loadFragments() {
         Map<String, String> fragments = new LinkedHashMap<>();
         for (RegexFragment fragment : fragmentMapper.selectList(Wrappers.emptyWrapper())) {
             fragments.put(fragment.getName(), fragment.getPattern());
         }
+        return fragments;
+    }
 
+    private String expandAndValidate(String template, Map<String, String> fragments) {
         Matcher matcher = REFERENCE_PATTERN.matcher(template);
         StringBuffer expanded = new StringBuffer();
         while (matcher.find()) {
@@ -54,8 +71,13 @@ public class RegexEngineService {
         return expanded.toString();
     }
 
-    public String expandAndValidate(String template, boolean matchStart, boolean matchEnd) {
-        String expanded = expandAndValidate(template);
+    private String expandAndValidate(
+            String template,
+            boolean matchStart,
+            boolean matchEnd,
+            Map<String, String> fragments
+    ) {
+        String expanded = expandAndValidate(template, fragments);
         String finalRegex = applyBoundaries(expanded, matchStart, matchEnd);
         compile(finalRegex, "正则表达式语法错误：");
         return finalRegex;
@@ -100,5 +122,10 @@ public class RegexEngineService {
         } catch (PatternSyntaxException exception) {
             throw new BusinessException(400, prefix + exception.getDescription());
         }
+    }
+
+    @FunctionalInterface
+    public interface RegexExpander {
+        String expandAndValidate(String template, boolean matchStart, boolean matchEnd);
     }
 }

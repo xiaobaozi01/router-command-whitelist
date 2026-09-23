@@ -39,11 +39,13 @@ public class CommandController {
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String regexKeyword,
             @RequestParam(required = false) Long currentViewId,
             @RequestParam(required = false) Long targetViewId,
             @RequestParam(required = false) Long sceneId
     ) {
-        return ApiResponse.success(commandService.page(current, size, keyword, currentViewId, targetViewId, sceneId));
+        return ApiResponse.success(commandService.page(
+                current, size, keyword, regexKeyword, currentViewId, targetViewId, sceneId));
     }
 
     @GetMapping("/{id}")

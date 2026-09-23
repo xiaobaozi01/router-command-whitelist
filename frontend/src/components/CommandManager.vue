@@ -19,7 +19,7 @@ const scenes = ref<OptionItem[]>([])
 const views = ref<OptionItem[]>([])
 const dialogVisible = ref(false)
 const editing = ref<CommandRule>()
-const query = reactive({ current: 1, size: 10, keyword: '', currentViewId: undefined as number | undefined, targetViewId: undefined as number | undefined, sceneId: props.sceneId })
+const query = reactive({ current: 1, size: 10, keyword: '', regexKeyword: '', currentViewId: undefined as number | undefined, targetViewId: undefined as number | undefined, sceneId: props.sceneId })
 
 const loadOptions = async () => {
   try { const [sceneResult, viewResult] = await Promise.all([sceneApi.options(), viewApi.options()]); scenes.value = sceneResult.data; views.value = viewResult.data }
@@ -34,7 +34,7 @@ const load = async () => {
   } catch (error) { ElMessage.error(getErrorMessage(error)) } finally { loading.value = false }
 }
 const search = () => { query.current = 1; load() }
-const reset = () => { Object.assign(query, { current: 1, keyword: '', currentViewId: undefined, targetViewId: undefined, sceneId: props.sceneId }); load() }
+const reset = () => { Object.assign(query, { current: 1, keyword: '', regexKeyword: '', currentViewId: undefined, targetViewId: undefined, sceneId: props.sceneId }); load() }
 const rowIndex = (index: number) => index + 1
 const openCreate = () => { editing.value = undefined; dialogVisible.value = true }
 const openEdit = (row: CommandRule) => { editing.value = row; dialogVisible.value = true }
@@ -58,6 +58,7 @@ onMounted(() => { loadOptions(); load() })
     <div class="page-toolbar filter-toolbar">
       <div class="filters">
         <el-input v-model="query.keyword" clearable spellcheck="false" placeholder="搜索命令表达式或描述" style="width: 250px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
+        <el-input v-model="query.regexKeyword" clearable spellcheck="false" placeholder="搜索展开后的匹配正则" style="width: 230px" @keyup.enter="search"><template #prefix><el-icon><Search /></el-icon></template></el-input>
         <el-select v-model="query.currentViewId" clearable filterable placeholder="所在视图" style="width: 150px"><el-option v-for="item in views" :key="item.id" :label="item.name" :value="item.id" /></el-select>
         <el-select v-model="query.targetViewId" clearable filterable placeholder="进入视图" style="width: 150px"><el-option v-for="item in views" :key="item.id" :label="item.name" :value="item.id" /></el-select>
         <el-select v-if="!sceneId" v-model="query.sceneId" clearable filterable placeholder="所属场景" style="width: 160px"><el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" /></el-select>

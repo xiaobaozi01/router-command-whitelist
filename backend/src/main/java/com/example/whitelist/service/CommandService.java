@@ -20,8 +20,10 @@ import com.example.whitelist.mapper.ViewDefinitionMapper;
 import com.example.whitelist.util.RichTextUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -58,6 +60,7 @@ public class CommandService {
             long current,
             long size,
             String keyword,
+            String regexKeyword,
             Long currentViewId,
             Long targetViewId,
             Long sceneId
@@ -74,8 +77,38 @@ public class CommandService {
                         "EXISTS (SELECT 1 FROM command_scene cs WHERE cs.command_id = command_rule.id AND cs.scene_id = {0})",
                         sceneId)
                 .orderByDesc(CommandRule::getUpdatedAt);
+        if (regexKeyword != null && !regexKeyword.isBlank()) {
+            return pageByExpandedRegex(current, size, regexKeyword, query);
+        }
         Page<CommandRule> page = commandMapper.selectPage(Page.of(current, size), query);
         return PageResponse.of(page, assemble(page.getRecords()));
+    }
+
+    private PageResponse<CommandResponse> pageByExpandedRegex(
+            long current,
+            long size,
+            String regexKeyword,
+            LambdaQueryWrapper<CommandRule> query
+    ) {
+        List<CommandRule> candidates = commandMapper.selectList(query);
+        Map<Long, String> expandedRegexes = expandRegexes(candidates);
+        String normalizedKeyword = regexKeyword.toLowerCase(Locale.ROOT);
+        List<CommandRule> matches = candidates.stream()
+                .filter(command -> expandedRegexes.get(command.getId())
+                        .toLowerCase(Locale.ROOT)
+                        .contains(normalizedKeyword))
+                .toList();
+
+        long total = matches.size();
+        long offset = current - 1 > Long.MAX_VALUE / size
+                ? Long.MAX_VALUE
+                : (current - 1) * size;
+        int fromIndex = (int) Math.min(offset, total);
+        int toIndex = (int) Math.min((long) fromIndex + size, total);
+        List<CommandRule> pageRecords = matches.subList(fromIndex, toIndex);
+        long pages = total == 0 ? 0 : (total + size - 1) / size;
+        return new PageResponse<>(
+                assemble(pageRecords, expandedRegexes), total, current, size, pages);
     }
 
     public CommandResponse get(Long id) {
@@ -178,6 +211,28 @@ public class CommandService {
     }
 
     private List<CommandResponse> assemble(List<CommandRule> commands) {
+        return assemble(commands, expandRegexes(commands));
+    }
+
+    private Map<Long, String> expandRegexes(List<CommandRule> commands) {
+        if (commands.isEmpty()) {
+            return Map.of();
+        }
+        RegexEngineService.RegexExpander expander = regexEngineService.createExpander();
+        Map<Long, String> expandedRegexes = new HashMap<>();
+        for (CommandRule command : commands) {
+            boolean matchStart = command.getMatchStart() == null || command.getMatchStart();
+            boolean matchEnd = command.getMatchEnd() == null || command.getMatchEnd();
+            expandedRegexes.put(command.getId(), expander.expandAndValidate(
+                    command.getRegexTemplate(), matchStart, matchEnd));
+        }
+        return expandedRegexes;
+    }
+
+    private List<CommandResponse> assemble(
+            List<CommandRule> commands,
+            Map<Long, String> expandedRegexes
+    ) {
         if (commands.isEmpty()) {
             return List.of();
         }
@@ -211,7 +266,7 @@ public class CommandService {
             result.add(new CommandResponse(
                     command.getId(), command.getExpressionHtml(), command.getExpressionText(), command.getDescription(),
                     command.getRegexTemplate(), matchStart, matchEnd,
-                    regexEngineService.expandAndValidate(command.getRegexTemplate(), matchStart, matchEnd),
+                    expandedRegexes.get(command.getId()),
                     commandViews.getOrDefault(command.getId(), List.of()),
                     target == null ? null : toOption(target),
                     commandScenes.getOrDefault(command.getId(), List.of()),
