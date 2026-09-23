@@ -46,9 +46,11 @@ public class SceneController {
     public ApiResponse<PageResponse<SceneResponse>> page(
             @RequestParam(defaultValue = "1") @Min(1) long current,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long size,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortOrder
     ) {
-        return ApiResponse.success(sceneService.page(current, size, keyword));
+        return ApiResponse.success(sceneService.page(current, size, keyword, sortField, sortOrder));
     }
 
     @GetMapping("/{id}")

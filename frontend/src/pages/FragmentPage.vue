@@ -11,7 +11,7 @@ import PageHeader from '../components/PageHeader.vue'
 const loading = ref(false)
 const records = ref<RegexFragment[]>([])
 const total = ref(0)
-const query = reactive({ current: 1, size: 10, keyword: '' })
+const query = reactive({ current: 1, size: 10, keyword: '', sortField: '', sortOrder: '' })
 const dialogVisible = ref(false)
 const saving = ref(false)
 const editingId = ref<number>()
@@ -25,6 +25,12 @@ const load = async () => {
   catch (error) { ElMessage.error(getErrorMessage(error)) } finally { loading.value = false }
 }
 const search = () => { query.current = 1; load() }
+const sort = ({ prop, order }: { prop: string; order: string | null }) => {
+  query.sortField = order ? prop : ''
+  query.sortOrder = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : ''
+  query.current = 1
+  load()
+}
 const rowIndex = (index: number) => index + 1
 const openCreate = () => { editingId.value = undefined; editingReferenceCount.value = 0; Object.assign(form, { name: '', description: '', pattern: '', common: false }); dialogVisible.value = true }
 const openEdit = (row: RegexFragment) => { editingId.value = row.id; editingReferenceCount.value = row.referenceCount; Object.assign(form, { name: row.name, description: row.description, pattern: row.pattern, common: row.common }); dialogVisible.value = true }
@@ -59,16 +65,16 @@ onMounted(load)
       </div>
     </div>
     <div class="table-wrap">
-      <el-table v-loading="loading" :data="records">
+      <el-table v-loading="loading" :data="records" @sort-change="sort">
         <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column label="片段" width="180"><template #default="{ row }"><span class="fragment-name">{{ '${' + row.name + '}' }}</span><el-tag v-if="row.common" size="small" effect="plain" type="success" class="common-tag">常用</el-tag></template></el-table-column>
         <el-table-column prop="description" label="描述" min-width="220" />
         <el-table-column label="正则内容" min-width="360" show-overflow-tooltip><template #default="{ row }"><span class="code-text">{{ row.pattern }}</span></template></el-table-column>
         <el-table-column prop="referenceCount" label="引用" width="90"><template #default="{ row }">{{ row.referenceCount }} 条</template></el-table-column>
         <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="170" sortable="custom"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
         <el-table-column prop="updatedBy" label="修改人" width="120" show-overflow-tooltip />
-        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
+        <el-table-column prop="updatedAt" label="修改时间" width="170" sortable="custom"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>

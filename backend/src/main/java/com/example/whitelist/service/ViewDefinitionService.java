@@ -14,6 +14,7 @@ import com.example.whitelist.mapper.CommandCurrentViewMapper;
 import com.example.whitelist.mapper.CommandRuleMapper;
 import com.example.whitelist.mapper.ViewDefinitionMapper;
 import com.example.whitelist.util.AuditUtils;
+import com.example.whitelist.util.TimeSort;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,11 +40,18 @@ public class ViewDefinitionService {
         this.commandMapper = commandMapper;
     }
 
-    public PageResponse<ViewResponse> page(long current, long size, String keyword) {
+    public PageResponse<ViewResponse> page(long current, long size, String keyword, String sortField, String sortOrder) {
+        TimeSort timeSort = TimeSort.parse(sortField, sortOrder);
+        LambdaQueryWrapper<ViewDefinition> query = new LambdaQueryWrapper<ViewDefinition>()
+                .like(keyword != null && !keyword.isBlank(), ViewDefinition::getName, keyword);
+        if (timeSort.field() == TimeSort.Field.CREATED_AT) {
+            query.orderBy(true, timeSort.ascending(), ViewDefinition::getCreatedAt);
+        } else {
+            query.orderBy(true, timeSort.ascending(), ViewDefinition::getUpdatedAt);
+        }
+        query.orderBy(true, timeSort.ascending(), ViewDefinition::getId);
         Page<ViewDefinition> page = viewMapper.selectPage(Page.of(current, size),
-                new LambdaQueryWrapper<ViewDefinition>()
-                        .like(keyword != null && !keyword.isBlank(), ViewDefinition::getName, keyword)
-                        .orderByDesc(ViewDefinition::getUpdatedAt));
+                query);
         Set<Long> ids = page.getRecords().stream().map(ViewDefinition::getId).collect(Collectors.toSet());
         Map<Long, Set<Long>> references = new HashMap<>();
         if (!ids.isEmpty()) {

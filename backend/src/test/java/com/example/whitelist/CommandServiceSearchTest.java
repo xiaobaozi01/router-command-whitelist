@@ -36,11 +36,14 @@ class CommandServiceSearchTest {
         insertCommand("interface name", "interface [a-z]+", LocalDateTime.now());
 
         PageResponse<CommandResponse> firstPage = commandService.page(
-                1, 1, null, "[0-9]+", null, null, null);
+                1, 1, null, "[0-9]+", null, null, null,
+                null, null, null, null);
         PageResponse<CommandResponse> secondPage = commandService.page(
-                2, 1, null, "[0-9]+", null, null, null);
+                2, 1, null, "[0-9]+", null, null, null,
+                null, null, null, null);
         PageResponse<CommandResponse> templateReference = commandService.page(
-                1, 10, null, "${INTEGER}", null, null, null);
+                1, 10, null, "${INTEGER}", null, null, null,
+                null, null, null, null);
 
         assertThat(firstPage.total()).isEqualTo(2);
         assertThat(firstPage.pages()).isEqualTo(2);
@@ -48,6 +51,32 @@ class CommandServiceSearchTest {
         assertThat(firstPage.records().getFirst().expandedRegex()).contains("[0-9]+");
         assertThat(secondPage.records()).hasSize(1);
         assertThat(templateReference.records()).isEmpty();
+    }
+
+    @Test
+    void filtersAuditUsersAndSortsBeforePaginating() {
+        LocalDateTime now = LocalDateTime.now();
+        insertCommand("older", "older", now.minusDays(2), now, "alice", "carol");
+        insertCommand("newer", "newer", now, now.minusDays(1), "bob", "dave");
+
+        PageResponse<CommandResponse> createdAscending = commandService.page(
+                1, 1, null, null, null, null, null,
+                null, null, "createdAt", "asc");
+        PageResponse<CommandResponse> createdByBob = commandService.page(
+                1, 10, null, null, null, null, null,
+                "bob", null, "updatedAt", "desc");
+        PageResponse<CommandResponse> updatedByCarol = commandService.page(
+                1, 10, null, null, null, null, null,
+                null, "carol", null, null);
+
+        assertThat(createdAscending.records()).extracting(CommandResponse::expressionText)
+                .containsExactly("older");
+        assertThat(createdByBob.records()).extracting(CommandResponse::expressionText)
+                .containsExactly("newer");
+        assertThat(updatedByCarol.records()).extracting(CommandResponse::expressionText)
+                .containsExactly("older");
+        assertThat(commandService.auditUsers().creators()).containsExactly("alice", "bob");
+        assertThat(commandService.auditUsers().updaters()).containsExactly("carol", "dave");
     }
 
     private void insertFragment(String name, String pattern) {
@@ -60,6 +89,17 @@ class CommandServiceSearchTest {
     }
 
     private void insertCommand(String expression, String regexTemplate, LocalDateTime updatedAt) {
+        insertCommand(expression, regexTemplate, updatedAt, updatedAt, "system", "system");
+    }
+
+    private void insertCommand(
+            String expression,
+            String regexTemplate,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String createdBy,
+            String updatedBy
+    ) {
         CommandRule command = new CommandRule();
         command.setExpressionHtml("<p>" + expression + "</p>");
         command.setExpressionText(expression);
@@ -67,7 +107,9 @@ class CommandServiceSearchTest {
         command.setRegexTemplate(regexTemplate);
         command.setMatchStart(true);
         command.setMatchEnd(true);
-        command.setCreatedAt(updatedAt);
+        command.setCreatedBy(createdBy);
+        command.setUpdatedBy(updatedBy);
+        command.setCreatedAt(createdAt);
         command.setUpdatedAt(updatedAt);
         commandMapper.insert(command);
     }

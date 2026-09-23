@@ -13,7 +13,7 @@ const router = useRouter()
 const loading = ref(false)
 const records = ref<Scene[]>([])
 const total = ref(0)
-const query = reactive({ current: 1, size: 10, keyword: '' })
+const query = reactive({ current: 1, size: 10, keyword: '', sortField: '', sortOrder: '' })
 const dialogVisible = ref(false)
 const saving = ref(false)
 const exporting = ref(false)
@@ -33,6 +33,12 @@ const load = async () => {
 }
 
 const search = () => { query.current = 1; load() }
+const sort = ({ prop, order }: { prop: string; order: string | null }) => {
+  query.sortField = order ? prop : ''
+  query.sortOrder = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : ''
+  query.current = 1
+  load()
+}
 const rowIndex = (index: number) => index + 1
 const openCreate = () => { editingId.value = undefined; form.name = ''; dialogVisible.value = true }
 const openEdit = (row: Scene) => { editingId.value = row.id; form.name = row.name; dialogVisible.value = true }
@@ -103,7 +109,7 @@ onMounted(load)
       </div>
     </div>
     <div class="table-wrap">
-      <el-table v-loading="loading" :data="records" row-key="id" @selection-change="selectedScenes = $event" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
+      <el-table v-loading="loading" :data="records" row-key="id" @sort-change="sort" @selection-change="selectedScenes = $event" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
         <el-table-column v-if="isAdmin" type="selection" width="52" reserve-selection />
         <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column prop="name" label="场景名称" min-width="240">
@@ -113,9 +119,9 @@ onMounted(load)
           <template #default="{ row }"><el-tag effect="plain">{{ row.commandCount }} 条</el-tag></template>
         </el-table-column>
         <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="170" sortable="custom"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
         <el-table-column prop="updatedBy" label="修改人" width="120" show-overflow-tooltip />
-        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
+        <el-table-column prop="updatedAt" label="修改时间" width="170" sortable="custom"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="150" align="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="openEdit(row)">编辑</el-button>

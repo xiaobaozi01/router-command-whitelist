@@ -11,6 +11,7 @@ import com.example.whitelist.entity.RegexFragment;
 import com.example.whitelist.mapper.CommandRuleMapper;
 import com.example.whitelist.mapper.RegexFragmentMapper;
 import com.example.whitelist.util.AuditUtils;
+import com.example.whitelist.util.TimeSort;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -31,13 +32,22 @@ public class RegexFragmentService {
         this.regexEngineService = regexEngineService;
     }
 
-    public PageResponse<RegexFragmentResponse> page(long current, long size, String keyword) {
+    public PageResponse<RegexFragmentResponse> page(
+            long current, long size, String keyword, String sortField, String sortOrder) {
+        TimeSort timeSort = TimeSort.parse(sortField, sortOrder);
         LambdaQueryWrapper<RegexFragment> query = new LambdaQueryWrapper<RegexFragment>()
                 .and(keyword != null && !keyword.isBlank(), wrapper -> wrapper
                         .like(RegexFragment::getName, keyword)
-                        .or().like(RegexFragment::getDescription, keyword))
-                .orderByDesc(RegexFragment::getIsCommon)
-                .orderByAsc(RegexFragment::getName);
+                        .or().like(RegexFragment::getDescription, keyword));
+        if (!timeSort.specified()) {
+            query.orderByDesc(RegexFragment::getIsCommon).orderByAsc(RegexFragment::getName);
+        } else if (timeSort.field() == TimeSort.Field.CREATED_AT) {
+            query.orderBy(true, timeSort.ascending(), RegexFragment::getCreatedAt)
+                    .orderBy(true, timeSort.ascending(), RegexFragment::getId);
+        } else {
+            query.orderBy(true, timeSort.ascending(), RegexFragment::getUpdatedAt)
+                    .orderBy(true, timeSort.ascending(), RegexFragment::getId);
+        }
         Page<RegexFragment> page = fragmentMapper.selectPage(Page.of(current, size), query);
         List<RegexFragmentResponse> records = page.getRecords().stream().map(this::toResponse).toList();
         return PageResponse.of(page, records);

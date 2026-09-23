@@ -6,6 +6,7 @@ import com.example.whitelist.common.BusinessException;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandRequest;
 import com.example.whitelist.dto.CommandResponse;
+import com.example.whitelist.dto.CommandAuditUsersResponse;
 import com.example.whitelist.dto.OptionItem;
 import com.example.whitelist.entity.CommandCurrentView;
 import com.example.whitelist.entity.CommandRule;
@@ -19,6 +20,7 @@ import com.example.whitelist.mapper.SceneMapper;
 import com.example.whitelist.mapper.ViewDefinitionMapper;
 import com.example.whitelist.util.RichTextUtils;
 import com.example.whitelist.util.AuditUtils;
+import com.example.whitelist.util.TimeSort;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,8 +66,13 @@ public class CommandService {
             String regexKeyword,
             Long currentViewId,
             Long targetViewId,
-            Long sceneId
+            Long sceneId,
+            String createdBy,
+            String updatedBy,
+            String sortField,
+            String sortOrder
     ) {
+        TimeSort timeSort = TimeSort.parse(sortField, sortOrder);
         LambdaQueryWrapper<CommandRule> query = new LambdaQueryWrapper<CommandRule>()
                 .and(keyword != null && !keyword.isBlank(), wrapper -> wrapper
                         .like(CommandRule::getExpressionText, keyword)
@@ -77,12 +84,41 @@ public class CommandService {
                 .apply(sceneId != null,
                         "EXISTS (SELECT 1 FROM command_scene cs WHERE cs.command_id = command_rule.id AND cs.scene_id = {0})",
                         sceneId)
-                .orderByDesc(CommandRule::getUpdatedAt);
+                .eq(createdBy != null && !createdBy.isBlank(), CommandRule::getCreatedBy, createdBy)
+                .eq(updatedBy != null && !updatedBy.isBlank(), CommandRule::getUpdatedBy, updatedBy);
+        applyTimeSort(query, timeSort);
         if (regexKeyword != null && !regexKeyword.isBlank()) {
             return pageByExpandedRegex(current, size, regexKeyword, query);
         }
         Page<CommandRule> page = commandMapper.selectPage(Page.of(current, size), query);
         return PageResponse.of(page, assemble(page.getRecords()));
+    }
+
+    public CommandAuditUsersResponse auditUsers() {
+        List<String> creators = commandMapper.selectList(new LambdaQueryWrapper<CommandRule>()
+                        .select(CommandRule::getCreatedBy)
+                        .isNotNull(CommandRule::getCreatedBy)
+                        .ne(CommandRule::getCreatedBy, "")
+                        .groupBy(CommandRule::getCreatedBy)
+                        .orderByAsc(CommandRule::getCreatedBy))
+                .stream().map(CommandRule::getCreatedBy).toList();
+        List<String> updaters = commandMapper.selectList(new LambdaQueryWrapper<CommandRule>()
+                        .select(CommandRule::getUpdatedBy)
+                        .isNotNull(CommandRule::getUpdatedBy)
+                        .ne(CommandRule::getUpdatedBy, "")
+                        .groupBy(CommandRule::getUpdatedBy)
+                        .orderByAsc(CommandRule::getUpdatedBy))
+                .stream().map(CommandRule::getUpdatedBy).toList();
+        return new CommandAuditUsersResponse(creators, updaters);
+    }
+
+    private void applyTimeSort(LambdaQueryWrapper<CommandRule> query, TimeSort sort) {
+        if (sort.field() == TimeSort.Field.CREATED_AT) {
+            query.orderBy(true, sort.ascending(), CommandRule::getCreatedAt);
+        } else {
+            query.orderBy(true, sort.ascending(), CommandRule::getUpdatedAt);
+        }
+        query.orderBy(true, sort.ascending(), CommandRule::getId);
     }
 
     private PageResponse<CommandResponse> pageByExpandedRegex(

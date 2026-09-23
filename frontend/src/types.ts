@@ -77,6 +77,11 @@ export interface CommandRule {
   updatedAt: string
 }
 
+export interface CommandAuditUsers {
+  creators: string[]
+  updaters: string[]
+}
+
 export interface CommandPayload {
   expressionHtml: string
   description: string

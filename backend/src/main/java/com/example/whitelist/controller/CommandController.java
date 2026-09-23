@@ -4,6 +4,7 @@ import com.example.whitelist.auth.AuthRole;
 import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
+import com.example.whitelist.dto.CommandAuditUsersResponse;
 import com.example.whitelist.dto.CommandRequest;
 import com.example.whitelist.dto.CommandResponse;
 import com.example.whitelist.dto.RegexPreviewRequest;
@@ -44,10 +45,20 @@ public class CommandController {
             @RequestParam(required = false) String regexKeyword,
             @RequestParam(required = false) Long currentViewId,
             @RequestParam(required = false) Long targetViewId,
-            @RequestParam(required = false) Long sceneId
+            @RequestParam(required = false) Long sceneId,
+            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String updatedBy,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortOrder
     ) {
         return ApiResponse.success(commandService.page(
-                current, size, keyword, regexKeyword, currentViewId, targetViewId, sceneId));
+                current, size, keyword, regexKeyword, currentViewId, targetViewId, sceneId,
+                createdBy, updatedBy, sortField, sortOrder));
+    }
+
+    @GetMapping("/audit-users")
+    public ApiResponse<CommandAuditUsersResponse> auditUsers() {
+        return ApiResponse.success(commandService.auditUsers());
     }
 
     @GetMapping("/{id}")

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type {
+  CommandAuditUsers,
   CommandPayload,
   CommandRule,
   CurrentUser,
@@ -103,6 +104,7 @@ export const fragmentApi = {
 
 export const commandApi = {
   page: (params: Record<string, unknown>) => http.get<PageResponse<CommandRule>>('/commands', { params }),
+  auditUsers: () => http.get<CommandAuditUsers>('/commands/audit-users'),
   get: (id: number) => http.get<CommandRule>(`/commands/${id}`),
   create: (payload: CommandPayload) => http.post<CommandRule>('/commands', payload),
   update: (id: number, payload: CommandPayload) => http.put<CommandRule>(`/commands/${id}`, payload),

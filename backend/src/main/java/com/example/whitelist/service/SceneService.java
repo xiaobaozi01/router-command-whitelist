@@ -12,6 +12,7 @@ import com.example.whitelist.entity.Scene;
 import com.example.whitelist.mapper.CommandSceneMapper;
 import com.example.whitelist.mapper.SceneMapper;
 import com.example.whitelist.util.AuditUtils;
+import com.example.whitelist.util.TimeSort;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +30,16 @@ public class SceneService {
         this.commandSceneMapper = commandSceneMapper;
     }
 
-    public PageResponse<SceneResponse> page(long current, long size, String keyword) {
+    public PageResponse<SceneResponse> page(long current, long size, String keyword, String sortField, String sortOrder) {
+        TimeSort timeSort = TimeSort.parse(sortField, sortOrder);
         LambdaQueryWrapper<Scene> query = new LambdaQueryWrapper<Scene>()
-                .like(keyword != null && !keyword.isBlank(), Scene::getName, keyword)
-                .orderByDesc(Scene::getUpdatedAt);
+                .like(keyword != null && !keyword.isBlank(), Scene::getName, keyword);
+        if (timeSort.field() == TimeSort.Field.CREATED_AT) {
+            query.orderBy(true, timeSort.ascending(), Scene::getCreatedAt);
+        } else {
+            query.orderBy(true, timeSort.ascending(), Scene::getUpdatedAt);
+        }
+        query.orderBy(true, timeSort.ascending(), Scene::getId);
         Page<Scene> page = sceneMapper.selectPage(Page.of(current, size), query);
         Set<Long> ids = page.getRecords().stream().map(Scene::getId).collect(Collectors.toSet());
         Map<Long, Long> counts = ids.isEmpty() ? Map.of() : commandSceneMapper.selectList(
