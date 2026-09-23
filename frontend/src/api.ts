@@ -3,6 +3,7 @@ import type {
   CommandPayload,
   CommandRule,
   CurrentUser,
+  DataMigrationSummary,
   ManagedUser,
   OptionItem,
   PageResponse,
@@ -106,4 +107,20 @@ export const commandApi = {
   remove: (id: number) => http.delete(`/commands/${id}`),
   preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
     http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
+}
+
+const migrationForm = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return form
+}
+
+export const dataMigrationApi = {
+  exportData: () => http.post<Blob>('/data-migration/export', undefined, { responseType: 'blob', timeout: 120000 }),
+  validate: (file: File) => http.post<DataMigrationSummary>(
+    '/data-migration/validate', migrationForm(file), { timeout: 120000 },
+  ),
+  importData: (file: File) => http.post<DataMigrationSummary>(
+    '/data-migration/import', migrationForm(file), { timeout: 120000 },
+  ),
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Collection, Connection, DataAnalysis, Tickets, UserFilled } from '@element-plus/icons-vue'
+import { Collection, Connection, DataAnalysis, FolderOpened, Tickets, UserFilled } from '@element-plus/icons-vue'
 import { isAdmin } from './auth'
 import UserAccountMenu from './components/UserAccountMenu.vue'
 
@@ -40,6 +40,10 @@ const activeMenu = computed(() => route.path.startsWith('/scenes/') ? '/scenes' 
         <el-menu-item v-if="isAdmin" index="/users">
           <el-icon><UserFilled /></el-icon>
           <span>人员管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/data-migration">
+          <el-icon><FolderOpened /></el-icon>
+          <span>数据迁移</span>
         </el-menu-item>
       </el-menu>
       <div class="sidebar-foot">

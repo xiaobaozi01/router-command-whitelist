@@ -73,6 +73,8 @@ class AuthPermissionTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/users").session(developerSession))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/data-migration/export").session(developerSession))
+                .andExpect(status().isForbidden());
 
         MockHttpSession viewerSession = login("viewer1", "password1", "USER");
         mockMvc.perform(get("/api/commands").session(viewerSession))

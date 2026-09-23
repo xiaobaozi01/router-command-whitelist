@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/views', component: () => import('./pages/ViewPage.vue'), meta: { title: '视图管理' } },
     { path: '/fragments', component: () => import('./pages/FragmentPage.vue'), meta: { title: '正则片段' } },
     { path: '/users', component: () => import('./pages/UserPage.vue'), meta: { title: '人员管理', roles: ['ADMIN'] } },
+    { path: '/data-migration', component: () => import('./pages/DataMigrationPage.vue'), meta: { title: '数据迁移', roles: ['ADMIN'] } },
     { path: '/password', component: () => import('./pages/ChangePasswordPage.vue'), meta: { title: '修改密码', roles: ['DEVELOPER', 'USER'] } },
   ],
 })

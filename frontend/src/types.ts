@@ -100,3 +100,12 @@ export interface RegexPreview {
   error?: string
   results: TestLineResult[]
 }
+
+export interface DataMigrationSummary {
+  regexFragments: number
+  scenes: number
+  views: number
+  commands: number
+  commandSceneRelations: number
+  commandViewRelations: number
+}
