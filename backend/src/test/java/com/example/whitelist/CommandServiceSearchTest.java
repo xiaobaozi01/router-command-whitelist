@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandResponse;
 import com.example.whitelist.entity.CommandRule;
+import com.example.whitelist.entity.RegexFragment;
 import com.example.whitelist.mapper.CommandRuleMapper;
+import com.example.whitelist.mapper.RegexFragmentMapper;
 import com.example.whitelist.service.CommandService;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -23,9 +25,12 @@ class CommandServiceSearchTest {
 
     @Autowired
     private CommandRuleMapper commandMapper;
+    @Autowired
+    private RegexFragmentMapper fragmentMapper;
 
     @Test
     void searchesExpandedRegexBeforePaginating() {
+        insertFragment("INTEGER", "[0-9]+");
         insertCommand("display integer", "display ${INTEGER}", LocalDateTime.now().minusMinutes(2));
         insertCommand("undo integer", "undo ${INTEGER}", LocalDateTime.now().minusMinutes(1));
         insertCommand("interface name", "interface [a-z]+", LocalDateTime.now());
@@ -43,6 +48,15 @@ class CommandServiceSearchTest {
         assertThat(firstPage.records().getFirst().expandedRegex()).contains("[0-9]+");
         assertThat(secondPage.records()).hasSize(1);
         assertThat(templateReference.records()).isEmpty();
+    }
+
+    private void insertFragment(String name, String pattern) {
+        RegexFragment fragment = new RegexFragment();
+        fragment.setName(name);
+        fragment.setDescription("");
+        fragment.setPattern(pattern);
+        fragment.setIsCommon(true);
+        fragmentMapper.insert(fragment);
     }
 
     private void insertCommand(String expression, String regexTemplate, LocalDateTime updatedAt) {

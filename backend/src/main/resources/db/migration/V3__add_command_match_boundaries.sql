@@ -1,5 +1,0 @@
-ALTER TABLE command_rule
-    ADD COLUMN match_start BOOLEAN NOT NULL DEFAULT TRUE;
-
-ALTER TABLE command_rule
-    ADD COLUMN match_end BOOLEAN NOT NULL DEFAULT TRUE;

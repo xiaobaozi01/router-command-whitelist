@@ -3,6 +3,8 @@ package com.example.whitelist;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.whitelist.dto.RegexPreviewResponse;
+import com.example.whitelist.entity.RegexFragment;
+import com.example.whitelist.mapper.RegexFragmentMapper;
 import com.example.whitelist.service.RegexEngineService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +16,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 class RegexEngineServiceTest {
     @Autowired
     private RegexEngineService regexEngineService;
+    @Autowired
+    private RegexFragmentMapper fragmentMapper;
 
     @Test
     void expandsFragmentAndTestsEveryLineWithFullMatch() {
+        RegexFragment fragment = new RegexFragment();
+        fragment.setName("IPV4");
+        fragment.setDescription("");
+        fragment.setPattern("(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])[.]){3}"
+                + "(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])");
+        fragment.setIsCommon(true);
+        fragmentMapper.insert(fragment);
+
         RegexPreviewResponse response = regexEngineService.preview(
                 "display ip ${IPV4}",
                 true,
