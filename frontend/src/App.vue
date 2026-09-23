@@ -46,10 +46,6 @@ const activeMenu = computed(() => route.path.startsWith('/scenes/') ? '/scenes' 
           <span>数据迁移</span>
         </el-menu-item>
       </el-menu>
-      <div class="sidebar-foot">
-        <span class="status-dot"></span>
-        单厂商模式 · 华为
-      </div>
     </el-aside>
     <el-container>
       <el-header class="topbar">

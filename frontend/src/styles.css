@@ -34,8 +34,6 @@ button, input, textarea { font: inherit; }
 .nav-menu .el-menu-item { height: 48px; margin-bottom: 6px; border-radius: 9px; color: #98a5bc; }
 .nav-menu .el-menu-item:hover { color: #fff; background: rgba(255,255,255,.06); }
 .nav-menu .el-menu-item.is-active { color: #fff; background: linear-gradient(90deg, rgba(64,105,234,.95), rgba(50,86,206,.82)); box-shadow: 0 8px 22px rgba(22,56,165,.25); }
-.sidebar-foot { padding: 20px 24px; color: #77849b; font-size: 12px; border-top: 1px solid rgba(255,255,255,.06); }
-.status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #39c184; box-shadow: 0 0 0 4px rgba(57,193,132,.12); }
 
 .topbar { height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 0 34px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); }
 .topbar h1 { margin: 0; font-size: 20px; color: var(--ink); }
