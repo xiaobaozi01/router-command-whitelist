@@ -43,6 +43,24 @@ app:
 
 修改管理员密码需要更新该配置并重启后端。管理员可在人员管理中创建开发人员和普通用户；开发人员可以维护命令，普通用户仅可查看，场景导出及场景、视图、正则片段和人员维护仅限管理员。
 
+## GitHub 数据同步
+
+管理员可在“数据迁移”页面将当前业务数据一键提交到 Git 仓库。后端运行环境需安装 Git，并为运行账号配置好 SSH 密钥和 `known_hosts`。
+
+```yaml
+app:
+  github-sync:
+    enabled: true
+    repository-url: git@github.company.local:team/asset-data.git
+    branch: main
+    work-directory: ./data/github-sync
+    data-directory: asset-data
+    author-name: 资产管理系统
+    author-email: asset-system@company.local
+```
+
+上述配置均可分别通过 `GITHUB_SYNC_ENABLED`、`GITHUB_SYNC_REPOSITORY_URL`、`GITHUB_SYNC_BRANCH`、`GITHUB_SYNC_WORK_DIRECTORY`、`GITHUB_SYNC_DATA_DIRECTORY`、`GITHUB_SYNC_AUTHOR_NAME` 和 `GITHUB_SYNC_AUTHOR_EMAIL` 环境变量覆盖。同步不会强制推送；远端分支发生并发变更时，本次推送会失败并要求重新同步。
+
 ## 主要规则
 
 - 命令可以属于多个场景、存在于多个当前视图，并可选一个目标视图。

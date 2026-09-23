@@ -109,3 +109,17 @@ export interface DataMigrationSummary {
   commandSceneRelations: number
   commandViewRelations: number
 }
+
+export interface GitSyncStatus {
+  enabled: boolean
+  repositoryUrl?: string
+  branch: string
+}
+
+export interface GitSyncResult {
+  changed: boolean
+  commitId: string
+  changedFiles: number
+  message: string
+  data: DataMigrationSummary
+}

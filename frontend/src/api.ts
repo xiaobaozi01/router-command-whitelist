@@ -4,6 +4,8 @@ import type {
   CommandRule,
   CurrentUser,
   DataMigrationSummary,
+  GitSyncResult,
+  GitSyncStatus,
   ManagedUser,
   OptionItem,
   PageResponse,
@@ -123,4 +125,6 @@ export const dataMigrationApi = {
   importData: (file: File) => http.post<DataMigrationSummary>(
     '/data-migration/import', migrationForm(file), { timeout: 120000 },
   ),
+  gitStatus: () => http.get<GitSyncStatus>('/data-migration/git/status'),
+  syncToGit: () => http.post<GitSyncResult>('/data-migration/git/sync', undefined, { timeout: 180000 }),
 }

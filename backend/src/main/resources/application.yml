@@ -32,6 +32,14 @@ app:
     username: admin
     password: admin123
     display-name: 系统管理员
+  github-sync:
+    enabled: ${GITHUB_SYNC_ENABLED:false}
+    repository-url: ${GITHUB_SYNC_REPOSITORY_URL:}
+    branch: ${GITHUB_SYNC_BRANCH:main}
+    work-directory: ${GITHUB_SYNC_WORK_DIRECTORY:./data/github-sync}
+    data-directory: ${GITHUB_SYNC_DATA_DIRECTORY:asset-data}
+    author-name: ${GITHUB_SYNC_AUTHOR_NAME:资产管理系统}
+    author-email: ${GITHUB_SYNC_AUTHOR_EMAIL:asset-system@localhost}
 
 mybatis-plus:
   configuration:

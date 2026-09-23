@@ -31,6 +31,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
@@ -105,6 +107,47 @@ public class DataMigrationService {
 
     @Transactional(readOnly = true)
     public void exportTo(OutputStream output) throws IOException {
+        PackageData data = loadCurrentData();
+        Manifest manifest = manifest(data);
+        TreeMap<Long, List<CommandData>> commandShards = shardCommands(data.commands);
+
+        ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8);
+        writeJson(zip, MANIFEST_FILE, manifest);
+        writeJsonLines(zip, FRAGMENT_FILE, data.fragments);
+        writeJsonLines(zip, SCENE_FILE, data.scenes);
+        writeJsonLines(zip, VIEW_FILE, data.views);
+        writeJson(zip, COMMAND_INDEX_FILE, commandIndex(commandShards));
+        for (Map.Entry<Long, List<CommandData>> shard : commandShards.entrySet()) {
+            long start = shard.getKey();
+            long end = start + COMMAND_SHARD_SIZE - 1;
+            writeJsonLines(zip, COMMAND_FOLDER + "%06d-%06d.jsonl".formatted(start, end), shard.getValue());
+        }
+        zip.finish();
+        zip.flush();
+    }
+
+    @Transactional(readOnly = true)
+    public DataMigrationSummary writeSnapshot(Path root) throws IOException {
+        PackageData data = loadCurrentData();
+        TreeMap<Long, List<CommandData>> commandShards = shardCommands(data.commands);
+        Path commandsDirectory = root.resolve("commands");
+        Files.createDirectories(commandsDirectory);
+        writeJson(root.resolve("manifest.json"), manifest(data));
+        writeJsonLines(root.resolve("regex-fragments.jsonl"), data.fragments);
+        writeJsonLines(root.resolve("scenes.jsonl"), data.scenes);
+        writeJsonLines(root.resolve("views.jsonl"), data.views);
+        writeJson(commandsDirectory.resolve("index.json"), commandIndex(commandShards));
+        for (Map.Entry<Long, List<CommandData>> shard : commandShards.entrySet()) {
+            long start = shard.getKey();
+            long end = start + COMMAND_SHARD_SIZE - 1;
+            writeJsonLines(
+                    commandsDirectory.resolve("%06d-%06d.jsonl".formatted(start, end)),
+                    shard.getValue());
+        }
+        return summary(data);
+    }
+
+    private PackageData loadCurrentData() {
         List<RegexFragmentData> fragments = fragmentMapper.selectList(
                         new LambdaQueryWrapper<RegexFragment>().orderByAsc(RegexFragment::getId))
                 .stream().map(this::toData).toList();
@@ -139,26 +182,7 @@ public class DataMigrationService {
         data.scenes.addAll(scenes);
         data.views.addAll(views);
         data.commands.addAll(commands);
-        DataMigrationSummary summary = summary(data);
-        Manifest manifest = new Manifest(PACKAGE_TYPE, FORMAT_VERSION, COMMAND_SHARD_SIZE, summary);
-
-        ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8);
-        writeJson(zip, MANIFEST_FILE, manifest);
-        writeJsonLines(zip, FRAGMENT_FILE, fragments);
-        writeJsonLines(zip, SCENE_FILE, scenes);
-        writeJsonLines(zip, VIEW_FILE, views);
-        TreeMap<Long, List<CommandData>> commandShards = shardCommands(commands);
-        List<String> shardFiles = commandShards.keySet().stream()
-                .map(start -> "%06d-%06d.jsonl".formatted(start, start + COMMAND_SHARD_SIZE - 1))
-                .toList();
-        writeJson(zip, COMMAND_INDEX_FILE, new CommandIndex(shardFiles));
-        for (Map.Entry<Long, List<CommandData>> shard : commandShards.entrySet()) {
-            long start = shard.getKey();
-            long end = start + COMMAND_SHARD_SIZE - 1;
-            writeJsonLines(zip, COMMAND_FOLDER + "%06d-%06d.jsonl".formatted(start, end), shard.getValue());
-        }
-        zip.finish();
-        zip.flush();
+        return data;
     }
 
     public DataMigrationSummary validate(MultipartFile file) {
@@ -490,6 +514,33 @@ public class DataMigrationService {
             zip.write('\n');
         }
         zip.closeEntry();
+    }
+
+    private void writeJson(Path path, Object value) throws IOException {
+        try (OutputStream output = Files.newOutputStream(path)) {
+            output.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(value));
+            output.write('\n');
+        }
+    }
+
+    private void writeJsonLines(Path path, List<?> values) throws IOException {
+        try (OutputStream output = Files.newOutputStream(path)) {
+            for (Object value : values) {
+                output.write(objectMapper.writeValueAsBytes(value));
+                output.write('\n');
+            }
+        }
+    }
+
+    private Manifest manifest(PackageData data) {
+        return new Manifest(PACKAGE_TYPE, FORMAT_VERSION, COMMAND_SHARD_SIZE, summary(data));
+    }
+
+    private CommandIndex commandIndex(TreeMap<Long, List<CommandData>> shards) {
+        List<String> shardFiles = shards.keySet().stream()
+                .map(start -> "%06d-%06d.jsonl".formatted(start, start + COMMAND_SHARD_SIZE - 1))
+                .toList();
+        return new CommandIndex(shardFiles);
     }
 
     private TreeMap<Long, List<CommandData>> shardCommands(List<CommandData> commands) {

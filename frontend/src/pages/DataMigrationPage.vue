@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Download, UploadFilled } from '@element-plus/icons-vue'
+import { onMounted, ref } from 'vue'
+import { Download, Promotion, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { dataMigrationApi, getErrorMessage } from '../api'
-import type { DataMigrationSummary } from '../types'
+import type { DataMigrationSummary, GitSyncResult, GitSyncStatus } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
 const fileInput = ref<HTMLInputElement>()
@@ -12,6 +12,9 @@ const summary = ref<DataMigrationSummary>()
 const exporting = ref(false)
 const validating = ref(false)
 const importing = ref(false)
+const syncing = ref(false)
+const gitStatus = ref<GitSyncStatus>()
+const syncResult = ref<GitSyncResult>()
 
 const countItems: Array<{ key: keyof DataMigrationSummary; label: string }> = [
   { key: 'commands', label: '命令行' },
@@ -98,6 +101,35 @@ const importData = async () => {
     importing.value = false
   }
 }
+
+const loadGitStatus = async () => {
+  try {
+    const { data } = await dataMigrationApi.gitStatus()
+    gitStatus.value = data
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error))
+  }
+}
+
+const syncToGit = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `将当前全部业务数据同步到 ${gitStatus.value?.repositoryUrl ?? 'GitHub'} 的 ${gitStatus.value?.branch ?? 'main'} 分支，是否继续？`,
+      '确认同步到 GitHub',
+      { type: 'warning', confirmButtonText: '提交并推送', cancelButtonText: '取消' },
+    )
+    syncing.value = true
+    const { data } = await dataMigrationApi.syncToGit()
+    syncResult.value = data
+    ElMessage.success(data.message)
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(getErrorMessage(error))
+  } finally {
+    syncing.value = false
+  }
+}
+
+onMounted(loadGitStatus)
 </script>
 
 <template>
@@ -134,6 +166,29 @@ const importData = async () => {
       </article>
     </div>
 
+    <div class="git-sync-block">
+      <div class="panel-icon git-icon"><el-icon><Promotion /></el-icon></div>
+      <div class="git-sync-content">
+        <h3>一键同步到 GitHub</h3>
+        <template v-if="gitStatus?.enabled">
+          <p>以远端分支为基准重新生成 <code>asset-data/</code>，有变化时自动提交并通过 SSH 推送。</p>
+          <div class="repository-info">
+            <span>{{ gitStatus.repositoryUrl }}</span>
+            <el-tag effect="plain">{{ gitStatus.branch }}</el-tag>
+          </div>
+          <el-button type="primary" :icon="Promotion" :loading="syncing" @click="syncToGit">同步到 GitHub</el-button>
+        </template>
+        <template v-else>
+          <p>GitHub 同步尚未启用，部署人员配置 <code>app.github-sync</code> 后即可使用。</p>
+          <el-button :icon="Promotion" disabled>同步到 GitHub</el-button>
+        </template>
+        <div v-if="syncResult" class="sync-result">
+          <strong>{{ syncResult.message }}</strong>
+          <span>提交 {{ syncResult.commitId.slice(0, 12) }} · {{ syncResult.changedFiles }} 个文件变更</span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="summary" class="summary-block">
       <h3>数据包内容</h3>
       <div class="summary-grid">
@@ -164,6 +219,7 @@ const importData = async () => {
 .panel-icon { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 11px; font-size: 21px; }
 .export-icon { color: #2856d6; background: #eaf0ff; }
 .import-icon { color: #26815e; background: #e8f7f0; }
+.git-icon { color: #7b51c9; background: #f0eafd; }
 .panel-content { min-width: 0; flex: 1; }
 .hidden-input { display: none; }
 .import-actions { display: flex; gap: 10px; }
@@ -171,6 +227,15 @@ const importData = async () => {
 .selected-file strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selected-file span { flex: none; color: #8b96a8; }
 .summary-block { padding: 22px; border-top: 1px solid #edf0f5; }
+.git-sync-block { display: flex; gap: 18px; margin: 0 22px 24px; padding: 24px; border: 1px solid #e4eaf2; border-radius: 12px; background: #fafbfd; }
+.git-sync-content { min-width: 0; flex: 1; }
+.git-sync-content h3 { margin: 0 0 9px; font-size: 16px; }
+.git-sync-content p { margin: 0 0 14px; color: #6c788e; font-size: 13px; line-height: 1.7; }
+.git-sync-content code { padding: 2px 5px; border-radius: 4px; color: #35415a; background: #eef1f6; font-family: "SFMono-Regular", Consolas, monospace; }
+.repository-info { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; color: #536078; font: 12px "SFMono-Regular", Consolas, monospace; }
+.repository-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-result { display: flex; gap: 10px; margin-top: 16px; color: #536078; font-size: 12px; }
+.sync-result strong { color: #26815e; }
 .summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .summary-item { padding: 15px; border: 1px solid #e7ebf2; border-radius: 9px; background: #fff; }
 .summary-item strong, .summary-item span { display: block; }
