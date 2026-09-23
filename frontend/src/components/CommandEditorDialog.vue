@@ -171,7 +171,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
             />
           </el-form-item>
           <el-form-item label="命令所在视图" prop="currentViewIds">
-            <el-select v-model="form.currentViewIds" multiple filterable collapse-tags placeholder="可多选" style="width: 100%">
+            <el-select v-model="form.currentViewIds" multiple filterable placeholder="可多选" style="width: 100%">
               <el-option v-for="item in views" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>

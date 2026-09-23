@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import { BracketMatching } from '../bracketMatching'
 import { isInternalRichText, writeInternalRichText } from '../internalRichClipboard'
 
 const props = defineProps<{ modelValue: string }>()
@@ -26,6 +27,7 @@ const editor = useEditor({
       trailingNode: false,
       underline: false,
     }),
+    BracketMatching,
   ],
   editorProps: {
     attributes: {
@@ -85,7 +87,7 @@ watch(() => props.modelValue, (value) => {
       <button type="button" title="加粗" :class="{ active: editor?.isActive('bold') }" @click="toggleFormat('bold')"><strong>B</strong></button>
       <button type="button" title="斜体" :class="{ active: editor?.isActive('italic') }" @click="toggleFormat('italic')"><em>I</em></button>
       <button type="button" title="删除线" :class="{ active: editor?.isActive('strike') }" @click="toggleFormat('strike')"><s>S</s></button>
-      <span>选中文字后应用样式</span>
+      <span>选中文字可设样式 · 光标移到括号旁可查看配对</span>
     </div>
     <div class="rich-content">
       <EditorContent :editor="editor" />
@@ -105,5 +107,6 @@ watch(() => props.modelValue, (value) => {
 .rich-content :deep(.tiptap) { min-height: 78px; padding: 10px 12px; outline: none; line-height: 1.65; color: #263149; overflow-wrap: anywhere; font-synthesis: style; }
 .rich-content :deep(.tiptap p) { margin: 0; }
 .rich-content :deep(.tiptap em), .rich-content :deep(.tiptap i) { font-style: italic !important; }
+.rich-content :deep(.bracket-match) { border-radius: 3px; color: #163f9c; background: #ffe58f; box-shadow: 0 0 0 1px #e7bd37; }
 .rich-placeholder { position: absolute; top: 10px; left: 12px; color: #a8abb2; pointer-events: none; }
 </style>

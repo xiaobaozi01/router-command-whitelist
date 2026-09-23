@@ -35,6 +35,7 @@ const load = async () => {
 }
 const search = () => { query.current = 1; load() }
 const reset = () => { Object.assign(query, { current: 1, keyword: '', currentViewId: undefined, targetViewId: undefined, sceneId: props.sceneId }); load() }
+const rowIndex = (index: number) => index + 1
 const openCreate = () => { editing.value = undefined; dialogVisible.value = true }
 const openEdit = (row: CommandRule) => { editing.value = row; dialogVisible.value = true }
 const remove = async (row: CommandRule) => {
@@ -66,6 +67,7 @@ onMounted(() => { loadOptions(); load() })
     </div>
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records" row-key="id">
+        <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column label="命令表达式" min-width="220"><template #default="{ row }"><div class="command-rich" v-html="row.expressionHtml"></div></template></el-table-column>
         <el-table-column label="匹配正则" min-width="260" show-overflow-tooltip><template #default="{ row }"><div class="code-text">{{ row.expandedRegex }}</div></template></el-table-column>
         <el-table-column label="所在视图" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.currentViews" :key="item.id" size="small" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>

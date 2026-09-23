@@ -23,6 +23,7 @@ const load = async () => {
   finally { loading.value = false }
 }
 const search = () => { query.current = 1; load() }
+const rowIndex = (index: number) => index + 1
 const openCreate = () => { editingId.value = undefined; form.name = ''; dialogVisible.value = true }
 const openEdit = (row: ViewDefinition) => { editingId.value = row.id; form.name = row.name; dialogVisible.value = true }
 const save = async () => {
@@ -55,6 +56,7 @@ onMounted(load)
     </div>
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records">
+        <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column prop="name" label="视图名称" min-width="280" />
         <el-table-column prop="commandCount" label="被命令引用" width="150"><template #default="{ row }"><el-tag :type="row.commandCount ? 'warning' : 'info'" effect="plain">{{ row.commandCount }} 条</el-tag></template></el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" width="190" />

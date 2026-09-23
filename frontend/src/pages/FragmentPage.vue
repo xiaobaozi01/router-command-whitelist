@@ -23,6 +23,7 @@ const load = async () => {
   catch (error) { ElMessage.error(getErrorMessage(error)) } finally { loading.value = false }
 }
 const search = () => { query.current = 1; load() }
+const rowIndex = (index: number) => index + 1
 const openCreate = () => { editingId.value = undefined; editingReferenceCount.value = 0; Object.assign(form, { name: '', description: '', pattern: '', common: false }); dialogVisible.value = true }
 const openEdit = (row: RegexFragment) => { editingId.value = row.id; editingReferenceCount.value = row.referenceCount; Object.assign(form, { name: row.name, description: row.description, pattern: row.pattern, common: row.common }); dialogVisible.value = true }
 const save = async () => {
@@ -57,6 +58,7 @@ onMounted(load)
     </div>
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records">
+        <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column label="片段" width="180"><template #default="{ row }"><span class="fragment-name">{{ '${' + row.name + '}' }}</span><el-tag v-if="row.common" size="small" effect="plain" type="success" class="common-tag">常用</el-tag></template></el-table-column>
         <el-table-column prop="description" label="描述" min-width="220" />
         <el-table-column label="正则内容" min-width="360" show-overflow-tooltip><template #default="{ row }"><span class="code-text">{{ row.pattern }}</span></template></el-table-column>

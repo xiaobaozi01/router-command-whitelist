@@ -31,6 +31,7 @@ const load = async () => {
 }
 
 const search = () => { query.current = 1; load() }
+const rowIndex = (index: number) => index + 1
 const openCreate = () => { editingId.value = undefined; form.name = ''; dialogVisible.value = true }
 const openEdit = (row: Scene) => { editingId.value = row.id; form.name = row.name; dialogVisible.value = true }
 
@@ -102,6 +103,7 @@ onMounted(load)
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records" row-key="id" @selection-change="selectedScenes = $event" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
         <el-table-column type="selection" width="52" reserve-selection />
+        <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column prop="name" label="场景名称" min-width="240">
           <template #default="{ row }"><el-link type="primary" @click.stop="router.push(`/scenes/${row.id}`)">{{ row.name }}</el-link></template>
         </el-table-column>
