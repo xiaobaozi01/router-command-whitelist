@@ -6,6 +6,7 @@ import { currentUser, setCurrentUser } from '../auth'
 
 const router = useRouter()
 const roleLabels = { ADMIN: '管理员', DEVELOPER: '开发人员', USER: '普通用户' }
+defineProps<{ dark?: boolean }>()
 
 const handleCommand = async (command: string) => {
   if (command === 'password') {
@@ -24,7 +25,7 @@ const handleCommand = async (command: string) => {
 
 <template>
   <el-dropdown trigger="click" @command="handleCommand">
-    <button class="account-trigger" type="button">
+    <button class="account-trigger" :class="{ 'is-dark': dark }" type="button">
       <span class="account-avatar">{{ currentUser?.displayName.slice(0, 1) }}</span>
       <span class="account-copy"><strong>{{ currentUser?.displayName }}</strong><small>{{ currentUser ? roleLabels[currentUser.role] : '' }}</small></span>
       <el-icon><ArrowDown /></el-icon>
@@ -48,4 +49,7 @@ const handleCommand = async (command: string) => {
 .account-copy strong, .account-copy small { display: block; }
 .account-copy strong { font-size: 13px; }
 .account-copy small { margin-top: 2px; color: #8995a8; font-size: 10px; }
+.account-trigger.is-dark { width: 100%; color: #e7ebf4; }
+.account-trigger.is-dark:hover { background: rgba(255,255,255,.07); }
+.account-trigger.is-dark .account-copy small { color: #8290aa; }
 </style>

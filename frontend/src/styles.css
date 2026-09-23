@@ -34,11 +34,9 @@ button, input, textarea { font: inherit; }
 .nav-menu .el-menu-item { height: 48px; margin-bottom: 6px; border-radius: 9px; color: #98a5bc; }
 .nav-menu .el-menu-item:hover { color: #fff; background: rgba(255,255,255,.06); }
 .nav-menu .el-menu-item.is-active { color: #fff; background: linear-gradient(90deg, rgba(64,105,234,.95), rgba(50,86,206,.82)); box-shadow: 0 8px 22px rgba(22,56,165,.25); }
+.sidebar-account { padding: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.sidebar-account .el-dropdown { display: block; width: 100%; }
 
-.topbar { height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 0 34px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); }
-.topbar h1 { margin: 0; font-size: 20px; color: var(--ink); }
-.topbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-.topbar-badge { padding: 7px 12px; border: 1px solid #dbe3ef; border-radius: 8px; color: #6a7790; background: #f8fafc; font-size: 12px; }
 .main-content { padding: 28px 34px 40px; }
 
 .page-card { background: white; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 5px 18px rgba(23, 38, 68, .035); overflow: hidden; }
@@ -69,5 +67,4 @@ button, input, textarea { font: inherit; }
 
 @media (max-width: 1280px) {
   .main-content { padding-left: 24px; padding-right: 24px; }
-  .topbar { padding-left: 24px; padding-right: 24px; }
 }

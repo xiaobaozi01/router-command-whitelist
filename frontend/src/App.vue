@@ -46,15 +46,11 @@ const activeMenu = computed(() => route.path.startsWith('/scenes/') ? '/scenes' 
           <span>数据迁移</span>
         </el-menu-item>
       </el-menu>
+      <div class="sidebar-account">
+        <UserAccountMenu dark />
+      </div>
     </el-aside>
-    <el-container>
-      <el-header class="topbar">
-        <div>
-          <h1>{{ route.meta.title }}</h1>
-          <p>管理路由器命令行正则白名单</p>
-        </div>
-        <UserAccountMenu />
-      </el-header>
+    <el-container direction="vertical">
       <el-main class="main-content">
         <router-view />
       </el-main>
