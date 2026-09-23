@@ -3,6 +3,7 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { commandApi, getErrorMessage, sceneApi, viewApi } from '../api'
+import { canEditCommands } from '../auth'
 import type { CommandRule, OptionItem } from '../types'
 import CommandEditorDialog from './CommandEditorDialog.vue'
 import PageHeader from './PageHeader.vue'
@@ -53,7 +54,7 @@ onMounted(() => { loadOptions(); load() })
   <section class="page-card">
     <div class="page-toolbar">
       <PageHeader :title="title" :description="description" />
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建命令</el-button>
+      <el-button v-if="canEditCommands" type="primary" :icon="Plus" @click="openCreate">新建命令</el-button>
     </div>
     <div class="page-toolbar filter-toolbar">
       <div class="filters">
@@ -74,13 +75,13 @@ onMounted(() => { loadOptions(); load() })
         <el-table-column label="所在视图" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.currentViews" :key="item.id" size="small" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>
         <el-table-column label="进入视图" min-width="120"><template #default="{ row }"><el-tag v-if="row.targetView" size="small" type="success" effect="plain">{{ row.targetView.name }}</el-tag><span v-else class="empty-hint">不切换</span></template></el-table-column>
         <el-table-column label="所属场景" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.scenes" :key="item.id" class="scene-tag" size="small" effect="light">{{ item.name }}</el-tag></div></template></el-table-column>
-        <el-table-column label="操作" width="140" fixed="right" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
+        <el-table-column v-if="canEditCommands" label="操作" width="140" fixed="right" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
   </section>
 
-  <CommandEditorDialog v-model="dialogVisible" :command="editing" :default-scene-id="sceneId" @saved="load" />
+  <CommandEditorDialog v-if="canEditCommands" v-model="dialogVisible" :command="editing" :default-scene-id="sceneId" @saved="load" />
 </template>
 
 <style scoped>

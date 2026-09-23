@@ -6,6 +6,25 @@ export interface PageResponse<T> {
   pages: number
 }
 
+export type UserRole = 'ADMIN' | 'DEVELOPER' | 'USER'
+
+export interface CurrentUser {
+  id?: number
+  username: string
+  displayName: string
+  role: UserRole
+  passwordChangeable: boolean
+}
+
+export interface ManagedUser {
+  id: number
+  username: string
+  displayName: string
+  role: Exclude<UserRole, 'ADMIN'>
+  createdAt: string
+  updatedAt: string
+}
+
 export interface OptionItem {
   id: number
   name: string

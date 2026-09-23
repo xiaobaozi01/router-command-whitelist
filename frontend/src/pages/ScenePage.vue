@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Download, Plus, Search } from '@element-plus/icons-vue'
 import { getErrorMessage, sceneApi } from '../api'
+import { isAdmin } from '../auth'
 import type { Scene } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -87,7 +88,7 @@ onMounted(load)
   <section class="page-card">
     <div class="page-toolbar">
       <PageHeader title="场景列表" description="按业务用途组织命令，一条命令可以加入多个场景" />
-      <div class="scene-actions">
+      <div v-if="isAdmin" class="scene-actions">
         <el-button :icon="Download" :disabled="!selectedScenes.length" :loading="exporting" @click="exportScenes">导出场景</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新建场景</el-button>
       </div>
@@ -102,7 +103,7 @@ onMounted(load)
     </div>
     <div class="table-wrap">
       <el-table v-loading="loading" :data="records" row-key="id" @selection-change="selectedScenes = $event" @row-click="(row: Scene) => router.push(`/scenes/${row.id}`)">
-        <el-table-column type="selection" width="52" reserve-selection />
+        <el-table-column v-if="isAdmin" type="selection" width="52" reserve-selection />
         <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column prop="name" label="场景名称" min-width="240">
           <template #default="{ row }"><el-link type="primary" @click.stop="router.push(`/scenes/${row.id}`)">{{ row.name }}</el-link></template>
@@ -111,7 +112,7 @@ onMounted(load)
           <template #default="{ row }"><el-tag effect="plain">{{ row.commandCount }} 条</el-tag></template>
         </el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" width="190" />
-        <el-table-column label="操作" width="150" align="right">
+        <el-table-column v-if="isAdmin" label="操作" width="150" align="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="openEdit(row)">编辑</el-button>
             <el-button link type="danger" @click.stop="remove(row)">删除</el-button>
@@ -124,7 +125,7 @@ onMounted(load)
     </div>
   </section>
 
-  <el-dialog v-model="dialogVisible" :title="editingId ? '编辑场景' : '新建场景'" width="460px" destroy-on-close>
+  <el-dialog v-if="isAdmin" v-model="dialogVisible" :title="editingId ? '编辑场景' : '新建场景'" width="460px" destroy-on-close>
     <el-form ref="formRef" :model="form" label-position="top">
       <el-form-item label="场景名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入场景名称' }]">
         <el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：日常巡检" @keyup.enter="save" />

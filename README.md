@@ -29,6 +29,20 @@ npm run dev
 
 H2 数据保存在 `backend/data/`，开发控制台地址为 `http://localhost:8080/h2-console`。JDBC URL 与 `application.yml` 中保持一致。
 
+## 登录与权限
+
+管理员账号不写入数据库，直接读取 `backend/src/main/resources/application.yml` 中的配置：
+
+```yaml
+app:
+  admin:
+    username: admin
+    password: admin123
+    display-name: 系统管理员
+```
+
+修改管理员密码需要更新该配置并重启后端。管理员可在人员管理中创建开发人员和普通用户；开发人员可以维护命令，普通用户仅可查看，场景导出及场景、视图、正则片段和人员维护仅限管理员。
+
 ## 主要规则
 
 - 命令可以属于多个场景、存在于多个当前视图，并可选一个目标视图。

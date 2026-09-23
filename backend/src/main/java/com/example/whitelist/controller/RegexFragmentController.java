@@ -1,5 +1,7 @@
 package com.example.whitelist.controller;
 
+import com.example.whitelist.auth.AuthRole;
+import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.RegexFragmentRequest;
@@ -45,16 +47,19 @@ public class RegexFragmentController {
     }
 
     @PostMapping
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<RegexFragmentResponse> create(@Valid @RequestBody RegexFragmentRequest request) {
         return ApiResponse.success(fragmentService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<RegexFragmentResponse> update(@PathVariable Long id, @Valid @RequestBody RegexFragmentRequest request) {
         return ApiResponse.success(fragmentService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<Void> delete(@PathVariable Long id) {
         fragmentService.delete(id);
         return ApiResponse.success();

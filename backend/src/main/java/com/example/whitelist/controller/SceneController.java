@@ -1,5 +1,7 @@
 package com.example.whitelist.controller;
 
+import com.example.whitelist.auth.AuthRole;
+import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.NameRequest;
@@ -60,11 +62,13 @@ public class SceneController {
     }
 
     @PostMapping
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<SceneResponse> create(@Valid @RequestBody NameRequest request) {
         return ApiResponse.success(sceneService.create(request));
     }
 
     @PostMapping("/export")
+    @RequireRole(AuthRole.ADMIN)
     public ResponseEntity<byte[]> export(@Valid @RequestBody SceneExportRequest request) {
         SceneExportService.ExportArchive archive = sceneExportService.export(request.sceneIds());
         String disposition = ContentDisposition.attachment()
@@ -78,11 +82,13 @@ public class SceneController {
     }
 
     @PutMapping("/{id}")
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<SceneResponse> update(@PathVariable Long id, @Valid @RequestBody NameRequest request) {
         return ApiResponse.success(sceneService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<Void> delete(@PathVariable Long id) {
         sceneService.delete(id);
         return ApiResponse.success();

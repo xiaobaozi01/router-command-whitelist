@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { getErrorMessage, viewApi } from '../api'
+import { isAdmin } from '../auth'
 import type { ViewDefinition } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -46,7 +47,7 @@ onMounted(load)
   <section class="page-card">
     <div class="page-toolbar">
       <PageHeader title="视图列表" description="维护华为设备命令执行前后的 CLI 视图" />
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建视图</el-button>
+      <el-button v-if="isAdmin" type="primary" :icon="Plus" @click="openCreate">新建视图</el-button>
     </div>
     <div class="page-toolbar">
       <div class="filters">
@@ -60,12 +61,12 @@ onMounted(load)
         <el-table-column prop="name" label="视图名称" min-width="280" />
         <el-table-column prop="commandCount" label="被命令引用" width="150"><template #default="{ row }"><el-tag :type="row.commandCount ? 'warning' : 'info'" effect="plain">{{ row.commandCount }} 条</el-tag></template></el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" width="190" />
-        <el-table-column label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
+        <el-table-column v-if="isAdmin" label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
   </section>
-  <el-dialog v-model="dialogVisible" :title="editingId ? '编辑视图' : '新建视图'" width="460px" destroy-on-close>
+  <el-dialog v-if="isAdmin" v-model="dialogVisible" :title="editingId ? '编辑视图' : '新建视图'" width="460px" destroy-on-close>
     <el-form ref="formRef" :model="form" label-position="top"><el-form-item label="视图名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入视图名称' }]"><el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：系统视图" @keyup.enter="save" /></el-form-item></el-form>
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
   </el-dialog>

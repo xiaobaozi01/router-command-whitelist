@@ -1,5 +1,7 @@
 package com.example.whitelist.controller;
 
+import com.example.whitelist.auth.AuthRole;
+import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandRequest;
@@ -54,22 +56,26 @@ public class CommandController {
     }
 
     @PostMapping
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
     public ApiResponse<CommandResponse> create(@Valid @RequestBody CommandRequest request) {
         return ApiResponse.success(commandService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
     public ApiResponse<CommandResponse> update(@PathVariable Long id, @Valid @RequestBody CommandRequest request) {
         return ApiResponse.success(commandService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
     public ApiResponse<Void> delete(@PathVariable Long id) {
         commandService.delete(id);
         return ApiResponse.success();
     }
 
     @PostMapping("/regex-preview")
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
     public ApiResponse<RegexPreviewResponse> preview(@Valid @RequestBody RegexPreviewRequest request) {
         return ApiResponse.success(regexEngineService.preview(
                 request.regexTemplate(),

@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { fragmentApi, getErrorMessage } from '../api'
+import { isAdmin } from '../auth'
 import type { RegexFragment } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -48,7 +49,7 @@ onMounted(load)
   <section class="page-card">
     <div class="page-toolbar">
       <PageHeader title="正则片段库" description="维护可复用的单层正则片段，片段之间不允许相互引用" />
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建片段</el-button>
+      <el-button v-if="isAdmin" type="primary" :icon="Plus" @click="openCreate">新建片段</el-button>
     </div>
     <div class="page-toolbar">
       <div class="filters">
@@ -63,13 +64,13 @@ onMounted(load)
         <el-table-column prop="description" label="描述" min-width="220" />
         <el-table-column label="正则内容" min-width="360" show-overflow-tooltip><template #default="{ row }"><span class="code-text">{{ row.pattern }}</span></template></el-table-column>
         <el-table-column prop="referenceCount" label="引用" width="90"><template #default="{ row }">{{ row.referenceCount }} 条</template></el-table-column>
-        <el-table-column label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
+        <el-table-column v-if="isAdmin" label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
   </section>
 
-  <el-dialog v-model="dialogVisible" :title="editingId ? '编辑正则片段' : '新建正则片段'" width="650px" destroy-on-close>
+  <el-dialog v-if="isAdmin" v-model="dialogVisible" :title="editingId ? '编辑正则片段' : '新建正则片段'" width="650px" destroy-on-close>
     <p v-if="editingId" class="dialog-tip">修改内容会立即影响 {{ editingReferenceCount }} 条引用命令；被引用时不能修改名称。</p>
     <el-form ref="formRef" :model="form" label-position="top">
       <el-form-item label="片段名称" prop="name" :rules="[{ required: true, message: '请输入片段名称' }, { pattern: /^[A-Z][A-Z0-9_]*$/, message: '只能使用大写字母、数字和下划线，且以字母开头' }]">

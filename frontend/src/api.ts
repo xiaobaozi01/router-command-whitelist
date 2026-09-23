@@ -2,6 +2,8 @@ import axios from 'axios'
 import type {
   CommandPayload,
   CommandRule,
+  CurrentUser,
+  ManagedUser,
   OptionItem,
   PageResponse,
   RegexFragment,
@@ -31,9 +33,33 @@ http.interceptors.response.use(
       try { error.response.data = JSON.parse(await error.response.data.text()) }
       catch { /* 保留原始响应，由统一错误处理展示网络错误 */ }
     }
+    if (axios.isAxiosError(error)
+      && error.response?.status === 401
+      && error.config?.url !== '/auth/me'
+      && window.location.pathname !== '/login') {
+      window.location.assign('/login')
+    }
     return Promise.reject(error)
   },
 )
+
+export const authApi = {
+  login: (username: string, password: string) => http.post<CurrentUser>('/auth/login', { username, password }),
+  me: () => http.get<CurrentUser>('/auth/me'),
+  logout: () => http.post('/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    http.put('/auth/password', { currentPassword, newPassword }),
+}
+
+export const userApi = {
+  page: (params: Record<string, unknown>) => http.get<PageResponse<ManagedUser>>('/users', { params }),
+  create: (payload: { username: string; displayName: string; role: ManagedUser['role']; password: string }) =>
+    http.post<ManagedUser>('/users', payload),
+  update: (id: number, payload: { displayName: string; role: ManagedUser['role'] }) =>
+    http.put<ManagedUser>(`/users/${id}`, payload),
+  resetPassword: (id: number, newPassword: string) => http.put(`/users/${id}/password`, { newPassword }),
+  remove: (id: number) => http.delete(`/users/${id}`),
+}
 
 export const getErrorMessage = (error: unknown) => {
   if (axios.isAxiosError(error)) {
