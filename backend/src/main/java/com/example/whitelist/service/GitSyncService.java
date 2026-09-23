@@ -122,13 +122,21 @@ public class GitSyncService {
     private void resetToRemote(Path repository) {
         require(!properties.branch().startsWith("-") && !properties.branch().isBlank(),
                 "GitHub 目标分支配置不正确");
-        try {
+        String remoteRef = "refs/heads/" + properties.branch();
+        CommandResult target = runGit(
+                repository, Set.of(0, 2), "ls-remote", "--exit-code", "--heads", "origin", remoteRef);
+        if (target.exitCode() == 0) {
             runGit(repository, Set.of(0), "fetch", "origin", properties.branch());
-        } catch (BusinessException exception) {
-            throw new BusinessException(409, "无法获取 GitHub 目标分支，请确认分支已存在且 SSH 配置正确");
+            runGit(repository, Set.of(0), "checkout", "--force", "-B", properties.branch(), "FETCH_HEAD");
+            runGit(repository, Set.of(0), "reset", "--hard", "FETCH_HEAD");
+            return;
         }
-        runGit(repository, Set.of(0), "checkout", "--force", "-B", properties.branch(), "FETCH_HEAD");
-        runGit(repository, Set.of(0), "reset", "--hard", "FETCH_HEAD");
+
+        CommandResult remoteHeads = runGit(repository, Set.of(0), "ls-remote", "--heads", "origin");
+        require(remoteHeads.output().isBlank(), "GitHub 目标分支不存在");
+        CommandResult localHead = runGit(repository, Set.of(0, 128), "rev-parse", "--verify", "HEAD");
+        require(localHead.exitCode() != 0, "GitHub 远端分支已被删除，请清理本地同步工作目录后重试");
+        runGit(repository, Set.of(0), "symbolic-ref", "HEAD", remoteRef);
     }
 
     private void deleteDataDirectory(Path repository, Path dataDirectory) {

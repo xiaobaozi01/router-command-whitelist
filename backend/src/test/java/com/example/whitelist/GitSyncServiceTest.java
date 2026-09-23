@@ -23,19 +23,8 @@ class GitSyncServiceTest {
     @Test
     void pushesOnlyWhenTheGeneratedSnapshotChanges() throws Exception {
         Path remote = tempDirectory.resolve("remote.git");
-        Path seed = tempDirectory.resolve("seed");
         Path work = tempDirectory.resolve("managed-work");
         run(tempDirectory, "git", "init", "--bare", remote.toString());
-        Files.createDirectories(seed);
-        run(seed, "git", "init");
-        run(seed, "git", "config", "user.name", "test");
-        run(seed, "git", "config", "user.email", "test@example.com");
-        Files.writeString(seed.resolve("README.md"), "asset data\n");
-        run(seed, "git", "add", "README.md");
-        run(seed, "git", "commit", "-m", "init");
-        run(seed, "git", "branch", "-M", "main");
-        run(seed, "git", "remote", "add", "origin", remote.toString());
-        run(seed, "git", "push", "-u", "origin", "main");
 
         AtomicReference<String> content = new AtomicReference<>("first\n");
         DataMigrationSummary summary = new DataMigrationSummary(0, 0, 0, 0, 0, 0);
