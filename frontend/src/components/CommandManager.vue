@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { commandApi, getErrorMessage, sceneApi, viewApi } from '../api'
 import { canEditCommands } from '../auth'
+import { formatDateTime } from '../dateTime'
 import type { CommandRule, OptionItem } from '../types'
 import CommandEditorDialog from './CommandEditorDialog.vue'
 import PageHeader from './PageHeader.vue'
@@ -75,6 +76,10 @@ onMounted(() => { loadOptions(); load() })
         <el-table-column label="所在视图" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.currentViews" :key="item.id" size="small" effect="plain">{{ item.name }}</el-tag></div></template></el-table-column>
         <el-table-column label="进入视图" min-width="120"><template #default="{ row }"><el-tag v-if="row.targetView" size="small" type="success" effect="plain">{{ row.targetView.name }}</el-tag><span v-else class="empty-hint">不切换</span></template></el-table-column>
         <el-table-column label="所属场景" min-width="155"><template #default="{ row }"><div class="tag-list"><el-tag v-for="item in row.scenes" :key="item.id" class="scene-tag" size="small" effect="light">{{ item.name }}</el-tag></div></template></el-table-column>
+        <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column prop="updatedBy" label="修改人" width="120" show-overflow-tooltip />
+        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column v-if="canEditCommands" label="操作" width="140" fixed="right" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>

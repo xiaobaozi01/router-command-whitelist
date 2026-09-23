@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Download, Plus, Search } from '@element-plus/icons-vue'
 import { getErrorMessage, sceneApi } from '../api'
 import { isAdmin } from '../auth'
+import { formatDateTime } from '../dateTime'
 import type { Scene } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -111,7 +112,10 @@ onMounted(load)
         <el-table-column prop="commandCount" label="命令数量" width="150">
           <template #default="{ row }"><el-tag effect="plain">{{ row.commandCount }} 条</el-tag></template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="190" />
+        <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column prop="updatedBy" label="修改人" width="120" show-overflow-tooltip />
+        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="150" align="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="openEdit(row)">编辑</el-button>

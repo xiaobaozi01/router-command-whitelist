@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +26,8 @@ import org.springframework.test.web.servlet.MvcResult;
 class AuthPermissionTest {
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void enforcesConfiguredAdminAndRolePermissions() throws Exception {
@@ -32,6 +35,26 @@ class AuthPermissionTest {
                 .andExpect(status().isUnauthorized());
 
         MockHttpSession adminSession = login("config-admin", "config-password", "ADMIN");
+        MvcResult sceneResult = mockMvc.perform(post("/api/scenes")
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"审计场景\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.createdBy").value("config-admin"))
+                .andExpect(jsonPath("$.data.updatedBy").value("config-admin"))
+                .andReturn();
+        long sceneId = objectMapper.readTree(sceneResult.getResponse().getContentAsString())
+                .path("data")
+                .path("id")
+                .asLong();
+        mockMvc.perform(put("/api/scenes/{id}", sceneId)
+                        .session(adminSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"审计场景-已更新\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.createdBy").value("config-admin"))
+                .andExpect(jsonPath("$.data.updatedBy").value("config-admin"));
+
         createUser(adminSession, "developer1", "开发人员一", "DEVELOPER", "password1");
         createUser(adminSession, "viewer1", "普通用户一", "USER", "password1");
 

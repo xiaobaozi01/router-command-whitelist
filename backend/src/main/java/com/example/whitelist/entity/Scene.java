@@ -12,6 +12,8 @@ public class Scene {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String name;
+    private String createdBy;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

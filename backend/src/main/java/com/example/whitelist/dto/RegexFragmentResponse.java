@@ -9,6 +9,8 @@ public record RegexFragmentResponse(
         String pattern,
         boolean common,
         long referenceCount,
+        String createdBy,
+        String updatedBy,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

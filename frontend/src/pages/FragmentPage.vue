@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { fragmentApi, getErrorMessage } from '../api'
 import { isAdmin } from '../auth'
+import { formatDateTime } from '../dateTime'
 import type { RegexFragment } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -64,6 +65,10 @@ onMounted(load)
         <el-table-column prop="description" label="描述" min-width="220" />
         <el-table-column label="正则内容" min-width="360" show-overflow-tooltip><template #default="{ row }"><span class="code-text">{{ row.pattern }}</span></template></el-table-column>
         <el-table-column prop="referenceCount" label="引用" width="90"><template #default="{ row }">{{ row.referenceCount }} 条</template></el-table-column>
+        <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column prop="updatedBy" label="修改人" width="120" show-overflow-tooltip />
+        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="150" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>

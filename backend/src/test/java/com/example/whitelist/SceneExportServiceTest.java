@@ -84,6 +84,7 @@ class SceneExportServiceTest {
                 "^(?:display (?:\\S+))$",
                 List.of(new OptionItem(2L, "系统视图"), new OptionItem(1L, "接口视图")),
                 new OptionItem(3L, "用户视图"), List.of(new OptionItem(1L, "日常巡检")),
+                "系统", "系统",
                 LocalDateTime.now(), LocalDateTime.now()
         );
     }

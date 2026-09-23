@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { Plus, Search } from '@element-plus/icons-vue'
 import { getErrorMessage, userApi } from '../api'
 import type { ManagedUser } from '../types'
+import { formatDateTime } from '../dateTime'
 import PageHeader from '../components/PageHeader.vue'
 
 const loading = ref(false)
@@ -103,7 +104,8 @@ onMounted(load)
         <el-table-column prop="username" label="用户名" min-width="180" />
         <el-table-column prop="displayName" label="姓名" min-width="180" />
         <el-table-column label="角色" width="140"><template #default="{ row }"><el-tag :type="row.role === 'DEVELOPER' ? 'primary' : 'info'" effect="plain">{{ roleLabels[row.role as ManagedUser['role']] }}</el-tag></template></el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="190" />
+        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="修改时间" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
         <el-table-column label="操作" width="230" align="right"><template #default="{ row }"><el-button link type="primary" @click="openEdit(row)">编辑</el-button><el-button link @click="openReset(row)">重置密码</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
       </el-table>
     </div>

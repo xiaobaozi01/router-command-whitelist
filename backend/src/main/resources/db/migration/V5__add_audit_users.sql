@@ -1,0 +1,11 @@
+ALTER TABLE command_rule ADD COLUMN created_by VARCHAR(64) NOT NULL DEFAULT '系统';
+ALTER TABLE command_rule ADD COLUMN updated_by VARCHAR(64) NOT NULL DEFAULT '系统';
+
+ALTER TABLE scene ADD COLUMN created_by VARCHAR(64) NOT NULL DEFAULT '系统';
+ALTER TABLE scene ADD COLUMN updated_by VARCHAR(64) NOT NULL DEFAULT '系统';
+
+ALTER TABLE view_definition ADD COLUMN created_by VARCHAR(64) NOT NULL DEFAULT '系统';
+ALTER TABLE view_definition ADD COLUMN updated_by VARCHAR(64) NOT NULL DEFAULT '系统';
+
+ALTER TABLE regex_fragment ADD COLUMN created_by VARCHAR(64) NOT NULL DEFAULT '系统';
+ALTER TABLE regex_fragment ADD COLUMN updated_by VARCHAR(64) NOT NULL DEFAULT '系统';

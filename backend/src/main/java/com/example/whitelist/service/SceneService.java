@@ -11,6 +11,7 @@ import com.example.whitelist.entity.CommandScene;
 import com.example.whitelist.entity.Scene;
 import com.example.whitelist.mapper.CommandSceneMapper;
 import com.example.whitelist.mapper.SceneMapper;
+import com.example.whitelist.util.AuditUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,8 @@ public class SceneService {
     public SceneResponse create(NameRequest request) {
         Scene scene = new Scene();
         scene.setName(request.name().trim());
+        scene.setCreatedBy(AuditUtils.currentUsername());
+        scene.setUpdatedBy(scene.getCreatedBy());
         scene.setCreatedAt(LocalDateTime.now());
         scene.setUpdatedAt(scene.getCreatedAt());
         sceneMapper.insert(scene);
@@ -67,6 +70,7 @@ public class SceneService {
     public SceneResponse update(Long id, NameRequest request) {
         Scene scene = requireScene(id);
         scene.setName(request.name().trim());
+        scene.setUpdatedBy(AuditUtils.currentUsername());
         scene.setUpdatedAt(LocalDateTime.now());
         sceneMapper.updateById(scene);
         return get(id);
@@ -89,6 +93,8 @@ public class SceneService {
     }
 
     private SceneResponse toResponse(Scene scene, long count) {
-        return new SceneResponse(scene.getId(), scene.getName(), count, scene.getCreatedAt(), scene.getUpdatedAt());
+        return new SceneResponse(
+                scene.getId(), scene.getName(), count, scene.getCreatedBy(), scene.getUpdatedBy(),
+                scene.getCreatedAt(), scene.getUpdatedAt());
     }
 }

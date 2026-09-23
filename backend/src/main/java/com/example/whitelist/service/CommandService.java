@@ -18,6 +18,7 @@ import com.example.whitelist.mapper.CommandSceneMapper;
 import com.example.whitelist.mapper.SceneMapper;
 import com.example.whitelist.mapper.ViewDefinitionMapper;
 import com.example.whitelist.util.RichTextUtils;
+import com.example.whitelist.util.AuditUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -133,6 +134,8 @@ public class CommandService {
         ValidatedRequest validated = validateRequest(request);
         CommandRule command = new CommandRule();
         apply(command, request, validated);
+        command.setCreatedBy(AuditUtils.currentUsername());
+        command.setUpdatedBy(command.getCreatedBy());
         command.setCreatedAt(LocalDateTime.now());
         command.setUpdatedAt(command.getCreatedAt());
         commandMapper.insert(command);
@@ -145,6 +148,7 @@ public class CommandService {
         CommandRule command = requireCommand(id);
         ValidatedRequest validated = validateRequest(request);
         apply(command, request, validated);
+        command.setUpdatedBy(AuditUtils.currentUsername());
         command.setUpdatedAt(LocalDateTime.now());
         commandMapper.updateById(command);
         commandSceneMapper.delete(new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getCommandId, id));
@@ -270,6 +274,7 @@ public class CommandService {
                     commandViews.getOrDefault(command.getId(), List.of()),
                     target == null ? null : toOption(target),
                     commandScenes.getOrDefault(command.getId(), List.of()),
+                    command.getCreatedBy(), command.getUpdatedBy(),
                     command.getCreatedAt(), command.getUpdatedAt()
             ));
         }

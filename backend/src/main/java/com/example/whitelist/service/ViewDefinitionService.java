@@ -13,6 +13,7 @@ import com.example.whitelist.entity.ViewDefinition;
 import com.example.whitelist.mapper.CommandCurrentViewMapper;
 import com.example.whitelist.mapper.CommandRuleMapper;
 import com.example.whitelist.mapper.ViewDefinitionMapper;
+import com.example.whitelist.util.AuditUtils;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,6 +70,8 @@ public class ViewDefinitionService {
     public ViewResponse create(NameRequest request) {
         ViewDefinition view = new ViewDefinition();
         view.setName(request.name().trim());
+        view.setCreatedBy(AuditUtils.currentUsername());
+        view.setUpdatedBy(view.getCreatedBy());
         view.setCreatedAt(LocalDateTime.now());
         view.setUpdatedAt(view.getCreatedAt());
         viewMapper.insert(view);
@@ -78,6 +81,7 @@ public class ViewDefinitionService {
     public ViewResponse update(Long id, NameRequest request) {
         ViewDefinition view = requireView(id);
         view.setName(request.name().trim());
+        view.setUpdatedBy(AuditUtils.currentUsername());
         view.setUpdatedAt(LocalDateTime.now());
         viewMapper.updateById(view);
         return toResponse(view, countReferences(id));
@@ -110,6 +114,8 @@ public class ViewDefinitionService {
     }
 
     private ViewResponse toResponse(ViewDefinition view, long count) {
-        return new ViewResponse(view.getId(), view.getName(), count, view.getCreatedAt(), view.getUpdatedAt());
+        return new ViewResponse(
+                view.getId(), view.getName(), count, view.getCreatedBy(), view.getUpdatedBy(),
+                view.getCreatedAt(), view.getUpdatedAt());
     }
 }

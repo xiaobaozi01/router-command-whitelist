@@ -18,6 +18,8 @@ public class CommandRule {
     private Boolean matchStart;
     private Boolean matchEnd;
     private Long targetViewId;
+    private String createdBy;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -10,6 +10,7 @@ import com.example.whitelist.entity.CommandRule;
 import com.example.whitelist.entity.RegexFragment;
 import com.example.whitelist.mapper.CommandRuleMapper;
 import com.example.whitelist.mapper.RegexFragmentMapper;
+import com.example.whitelist.util.AuditUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,8 @@ public class RegexFragmentService {
         regexEngineService.validateFragmentPattern(request.pattern());
         RegexFragment fragment = new RegexFragment();
         apply(fragment, request);
+        fragment.setCreatedBy(AuditUtils.currentUsername());
+        fragment.setUpdatedBy(fragment.getCreatedBy());
         fragment.setCreatedAt(LocalDateTime.now());
         fragment.setUpdatedAt(fragment.getCreatedAt());
         fragmentMapper.insert(fragment);
@@ -65,6 +68,7 @@ public class RegexFragmentService {
             throw new BusinessException(409, "该片段已被命令引用，不能修改片段名称");
         }
         apply(fragment, request);
+        fragment.setUpdatedBy(AuditUtils.currentUsername());
         fragment.setUpdatedAt(LocalDateTime.now());
         fragmentMapper.updateById(fragment);
         return toResponse(fragment);
@@ -97,6 +101,7 @@ public class RegexFragmentService {
         return new RegexFragmentResponse(
                 fragment.getId(), fragment.getName(), fragment.getDescription(), fragment.getPattern(),
                 Boolean.TRUE.equals(fragment.getIsCommon()), referenceCount(fragment.getName()),
+                fragment.getCreatedBy(), fragment.getUpdatedBy(),
                 fragment.getCreatedAt(), fragment.getUpdatedAt());
     }
 

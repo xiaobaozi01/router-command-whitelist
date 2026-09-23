@@ -15,6 +15,8 @@ public record CommandResponse(
         List<OptionItem> currentViews,
         OptionItem targetView,
         List<OptionItem> scenes,
+        String createdBy,
+        String updatedBy,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

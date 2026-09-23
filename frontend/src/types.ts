@@ -32,12 +32,16 @@ export interface OptionItem {
 
 export interface Scene extends OptionItem {
   commandCount: number
+  createdBy: string
+  updatedBy: string
   createdAt: string
   updatedAt: string
 }
 
 export interface ViewDefinition extends OptionItem {
   commandCount: number
+  createdBy: string
+  updatedBy: string
   createdAt: string
   updatedAt: string
 }
@@ -49,6 +53,8 @@ export interface RegexFragment {
   pattern: string
   common: boolean
   referenceCount: number
+  createdBy: string
+  updatedBy: string
   createdAt: string
   updatedAt: string
 }
@@ -65,6 +71,8 @@ export interface CommandRule {
   currentViews: OptionItem[]
   targetView?: OptionItem
   scenes: OptionItem[]
+  createdBy: string
+  updatedBy: string
   createdAt: string
   updatedAt: string
 }

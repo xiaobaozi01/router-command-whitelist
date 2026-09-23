@@ -17,6 +17,8 @@ public class RegexFragment {
     @TableField("pattern_text")
     private String pattern;
     private Boolean isCommon;
+    private String createdBy;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

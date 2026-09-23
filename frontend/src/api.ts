@@ -91,9 +91,9 @@ export const viewApi = {
 export const fragmentApi = {
   page: (params: Record<string, unknown>) => http.get<PageResponse<RegexFragment>>('/fragments', { params }),
   options: () => http.get<RegexFragment[]>('/fragments/options'),
-  create: (payload: Omit<RegexFragment, 'id' | 'referenceCount' | 'createdAt' | 'updatedAt'>) =>
+  create: (payload: Omit<RegexFragment, 'id' | 'referenceCount' | 'createdBy' | 'updatedBy' | 'createdAt' | 'updatedAt'>) =>
     http.post<RegexFragment>('/fragments', payload),
-  update: (id: number, payload: Omit<RegexFragment, 'id' | 'referenceCount' | 'createdAt' | 'updatedAt'>) =>
+  update: (id: number, payload: Omit<RegexFragment, 'id' | 'referenceCount' | 'createdBy' | 'updatedBy' | 'createdAt' | 'updatedAt'>) =>
     http.put<RegexFragment>(`/fragments/${id}`, payload),
   remove: (id: number) => http.delete(`/fragments/${id}`),
 }
