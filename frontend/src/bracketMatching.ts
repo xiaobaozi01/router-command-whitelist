@@ -15,9 +15,46 @@ const openingBrackets = new Set(bracketPairs.keys())
 const closingBrackets = new Set(bracketPairs.values())
 const matchingOpeningBracket = new Map(Array.from(bracketPairs, ([opening, closing]) => [closing, opening]))
 
+export interface TextBracketMatch {
+  active: number
+  matching: number
+}
+
 interface BracketCharacter {
   character: string
   position: number
+}
+
+const isEscaped = (text: string, index: number) => {
+  let backslashes = 0
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor--) backslashes++
+  return backslashes % 2 === 1
+}
+
+const collectRegexBrackets = (text: string) => {
+  const brackets: BracketCharacter[] = []
+  let inCharacterClass = false
+  for (let position = 0; position < text.length; position++) {
+    const character = text[position]
+    if (isEscaped(text, position)) continue
+
+    if (inCharacterClass) {
+      if (character === ']') {
+        brackets.push({ character, position })
+        inCharacterClass = false
+      }
+      continue
+    }
+
+    if (character === '[') {
+      inCharacterClass = true
+      brackets.push({ character, position })
+    } else if (openingBrackets.has(character) || closingBrackets.has(character)) {
+      brackets.push({ character, position })
+    }
+  }
+
+  return brackets
 }
 
 const collectBrackets = (doc: ProseMirrorNode) => {
@@ -82,6 +119,22 @@ const findMatchingBracketIndex = (brackets: BracketCharacter[], activeIndex: num
   }
 
   return -1
+}
+
+export const findRegexBracketMatch = (
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+): TextBracketMatch | undefined => {
+  const brackets = collectRegexBrackets(text)
+  const activeIndex = findActiveBracketIndex(brackets, selectionStart, selectionEnd)
+  const matchingIndex = findMatchingBracketIndex(brackets, activeIndex)
+  if (activeIndex === -1 || matchingIndex === -1) return undefined
+
+  return {
+    active: brackets[activeIndex].position,
+    matching: brackets[matchingIndex].position,
+  }
 }
 
 export const BracketMatching = Extension.create({

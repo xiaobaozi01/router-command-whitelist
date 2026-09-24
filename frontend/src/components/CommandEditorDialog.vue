@@ -4,13 +4,14 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Check, Close, Search } from '@element-plus/icons-vue'
 import { commandApi, fragmentApi, getErrorMessage, sceneApi, viewApi } from '../api'
 import type { CommandPayload, CommandRule, OptionItem, RegexFragment, RegexPreview } from '../types'
+import RegexEditor from './RegexEditor.vue'
 import RichTextEditor from './RichTextEditor.vue'
 
 const props = defineProps<{ modelValue: boolean; command?: CommandRule; defaultSceneId?: number }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; saved: [] }>()
 
 const formRef = ref<FormInstance>()
-const regexTextarea = ref<HTMLTextAreaElement>()
+const regexEditor = ref<InstanceType<typeof RegexEditor>>()
 const saving = ref(false)
 const loadingOptions = ref(false)
 const scenes = ref<OptionItem[]>([])
@@ -120,15 +121,15 @@ const schedulePreview = () => {
   previewTimer = window.setTimeout(runPreview, 350)
 }
 
-const insertFragment = async (fragment: RegexFragment) => {
-  const textarea = regexTextarea.value
+const validateRegex = () => {
+  void formRef.value?.validateField('regexTemplate').catch(() => undefined)
+}
+
+const insertFragment = (fragment: RegexFragment) => {
   const reference = `\${${fragment.name}}`
-  const start = textarea?.selectionStart ?? form.regexTemplate.length
-  const end = textarea?.selectionEnd ?? start
-  form.regexTemplate = form.regexTemplate.slice(0, start) + reference + form.regexTemplate.slice(end)
-  await nextTick()
-  textarea?.focus()
-  textarea?.setSelectionRange(start + reference.length, start + reference.length)
+  if (regexEditor.value?.replaceSelection(reference)) return
+
+  form.regexTemplate += reference
   schedulePreview()
 }
 
@@ -224,7 +225,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
         </div>
 
         <div class="regex-section">
-          <div class="section-heading"><strong>匹配正则</strong><span>Java 正则 · 按边界设置匹配</span></div>
+          <div class="section-heading"><strong>匹配正则</strong><span>Java 正则 · 按边界设置匹配 · 光标移到括号旁可查看配对</span></div>
           <div class="boundary-options">
             <span>匹配边界</span>
             <el-checkbox v-model="form.matchStart" @change="schedulePreview">开头匹配 <code>^</code></el-checkbox>
@@ -236,7 +237,13 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
             <button v-for="item in commonFragments" :key="item.id" type="button" @click="insertFragment(item)">{{ '${' + item.name + '}' }}</button>
           </div>
           <el-form-item prop="regexTemplate" class="regex-form-item">
-            <textarea ref="regexTextarea" v-model="form.regexTemplate" class="regex-textarea" spellcheck="false" placeholder="例如：display ip routing-table ${IPV4}" @input="schedulePreview"></textarea>
+            <RegexEditor
+              ref="regexEditor"
+              v-model="form.regexTemplate"
+              placeholder="例如：display ip routing-table ${IPV4}"
+              @change="schedulePreview"
+              @blur="validateRegex"
+            />
           </el-form-item>
           <div v-if="hasManualBoundary" class="boundary-warning">正则模板中不需要手动输入 ^ 或 $，请使用上方的匹配边界选项。</div>
 
@@ -303,8 +310,6 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .quick-fragments button { padding: 4px 8px; border: 1px solid #dce4f2; border-radius: 5px; color: #3157ba; background: #f5f8ff; font: 11px "SFMono-Regular", Consolas, monospace; cursor: pointer; }
 .quick-fragments button:hover { border-color: #91a9ec; background: #edf2ff; }
 .regex-form-item { margin-bottom: 10px; }
-.regex-textarea { display: block; width: 100%; min-height: 108px; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 6px; outline: none; resize: vertical; color: #263149; font: 12px/1.7 "SFMono-Regular", Consolas, monospace; }
-.regex-textarea:focus { border-color: #2856d6; }
 .preview-block { padding: 10px 12px; border: 1px solid #dce8e4; border-radius: 7px; background: #f7fbfa; }
 .preview-block.invalid { border-color: #f0d7d7; background: #fff9f9; }
 .preview-label { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: #6d7b8f; font-size: 11px; }
