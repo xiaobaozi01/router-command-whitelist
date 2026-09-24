@@ -44,7 +44,23 @@ CREATE TABLE command_rule (
     updated_by VARCHAR(64) NOT NULL DEFAULT '系统',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT fk_command_target_view FOREIGN KEY (target_view_id) REFERENCES view_definition(id)
+);
+
+CREATE TABLE command_audit_event (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    command_id BIGINT NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    actor_user_id BIGINT NULL,
+    actor_username VARCHAR(64) NOT NULL,
+    actor_display_name VARCHAR(100) NOT NULL,
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    change_reason VARCHAR(500) NOT NULL,
+    changed_fields TEXT NOT NULL,
+    before_snapshot TEXT NULL,
+    after_snapshot TEXT NULL,
+    source VARCHAR(32) NOT NULL DEFAULT 'WEB'
 );
 
 CREATE TABLE app_user (
@@ -75,6 +91,8 @@ CREATE TABLE command_current_view (
 );
 
 CREATE INDEX idx_command_target_view ON command_rule(target_view_id);
+CREATE INDEX idx_command_audit_command_time ON command_audit_event(command_id, occurred_at);
+CREATE INDEX idx_command_audit_actor_time ON command_audit_event(actor_username, occurred_at);
 CREATE INDEX idx_command_scene_scene ON command_scene(scene_id);
 CREATE INDEX idx_command_current_view_view ON command_current_view(view_id);
 CREATE INDEX idx_app_user_role ON app_user(role_name);

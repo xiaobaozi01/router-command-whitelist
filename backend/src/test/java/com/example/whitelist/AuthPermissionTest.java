@@ -77,6 +77,10 @@ class AuthPermissionTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/data-migration/git/sync").session(developerSession))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/commands/audit-events").session(developerSession))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/commands/{id}/audit-events", 999).session(developerSession))
+                .andExpect(status().isNotFound());
 
         MockHttpSession viewerSession = login("viewer1", "password1", "USER");
         mockMvc.perform(get("/api/commands").session(viewerSession))
@@ -86,6 +90,13 @@ class AuthPermissionTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"regexTemplate\":\"display\",\"testText\":\"display\"}"))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/commands/audit-events").session(viewerSession))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/commands/{id}/audit-events", 999).session(viewerSession))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/commands/audit-events").session(adminSession))
+                .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/auth/password")
                         .session(adminSession)

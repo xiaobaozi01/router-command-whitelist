@@ -75,6 +75,7 @@ export interface CommandRule {
   updatedBy: string
   createdAt: string
   updatedAt: string
+  version: number
 }
 
 export interface CommandAuditUsers {
@@ -91,6 +92,37 @@ export interface CommandPayload {
   currentViewIds: number[]
   targetViewId?: number
   sceneIds: number[]
+  version?: number
+  changeReason?: string
+}
+
+export type CommandAuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'FRAGMENT_IMPACT'
+
+export interface CommandAuditSnapshot {
+  expressionHtml: string
+  expressionText: string
+  regexTemplate: string
+  matchStart: boolean
+  matchEnd: boolean
+  expandedRegex: string
+  currentViews: OptionItem[]
+  targetView?: OptionItem
+  scenes: OptionItem[]
+}
+
+export interface CommandAuditEvent {
+  id: number
+  commandId: number
+  action: CommandAuditAction
+  actorUserId?: number
+  actorUsername: string
+  actorDisplayName: string
+  occurredAt: string
+  changeReason: string
+  changedFields: string[]
+  beforeSnapshot?: CommandAuditSnapshot
+  afterSnapshot?: CommandAuditSnapshot
+  source: 'WEB' | 'SYSTEM'
 }
 
 export interface TestLineResult {

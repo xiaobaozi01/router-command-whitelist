@@ -7,6 +7,8 @@ import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandRequest;
 import com.example.whitelist.dto.CommandResponse;
 import com.example.whitelist.dto.CommandAuditUsersResponse;
+import com.example.whitelist.dto.CommandAuditEventResponse;
+import com.example.whitelist.dto.CommandAuditSnapshot;
 import com.example.whitelist.dto.OptionItem;
 import com.example.whitelist.entity.CommandCurrentView;
 import com.example.whitelist.entity.CommandRule;
@@ -28,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,6 +45,7 @@ public class CommandService {
     private final SceneMapper sceneMapper;
     private final ViewDefinitionMapper viewMapper;
     private final RegexEngineService regexEngineService;
+    private final CommandAuditService commandAuditService;
 
     public CommandService(
             CommandRuleMapper commandMapper,
@@ -49,7 +53,8 @@ public class CommandService {
             CommandCurrentViewMapper currentViewMapper,
             SceneMapper sceneMapper,
             ViewDefinitionMapper viewMapper,
-            RegexEngineService regexEngineService
+            RegexEngineService regexEngineService,
+            CommandAuditService commandAuditService
     ) {
         this.commandMapper = commandMapper;
         this.commandSceneMapper = commandSceneMapper;
@@ -57,6 +62,7 @@ public class CommandService {
         this.sceneMapper = sceneMapper;
         this.viewMapper = viewMapper;
         this.regexEngineService = regexEngineService;
+        this.commandAuditService = commandAuditService;
     }
 
     public PageResponse<CommandResponse> page(
@@ -152,6 +158,15 @@ public class CommandService {
         return assemble(List.of(requireCommand(id))).getFirst();
     }
 
+    public List<CommandAuditEventResponse> auditEvents(Long id) {
+        requireCommand(id);
+        return commandAuditService.list(id);
+    }
+
+    public PageResponse<CommandAuditEventResponse> auditEventPage(long current, long size) {
+        return commandAuditService.page(current, size);
+    }
+
     public List<CommandResponse> listByScene(Long sceneId) {
         List<Long> commandIds = commandSceneMapper.selectList(
                         new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getSceneId, sceneId))
@@ -176,29 +191,57 @@ public class CommandService {
         command.setUpdatedAt(command.getCreatedAt());
         commandMapper.insert(command);
         insertRelations(command.getId(), validated.sceneIds(), validated.currentViewIds());
+        commandAuditService.record(
+                command.getId(), CommandAuditService.ACTION_CREATE, null,
+                commandAuditService.capture(command.getId()), "创建命令", CommandAuditService.SOURCE_WEB);
         return get(command.getId());
     }
 
     @Transactional
     public CommandResponse update(Long id, CommandRequest request) {
-        CommandRule command = requireCommand(id);
+        CommandRule command = requireCommandForUpdate(id);
+        requireCurrentVersion(request.version(), command.getVersion());
+        CommandAuditSnapshot before = commandAuditService.capture(command);
         ValidatedRequest validated = validateRequest(request);
+        if (hasCriticalChanges(command, request, validated, before)
+                && (request.changeReason() == null || request.changeReason().isBlank())) {
+            throw new BusinessException(400, "修改关键字段时必须填写修改原因");
+        }
         apply(command, request, validated);
         command.setUpdatedBy(AuditUtils.currentUsername());
         command.setUpdatedAt(LocalDateTime.now());
-        commandMapper.updateById(command);
+        if (commandMapper.updateById(command) != 1) {
+            throw concurrentModification();
+        }
         commandSceneMapper.delete(new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getCommandId, id));
         currentViewMapper.delete(new LambdaQueryWrapper<CommandCurrentView>().eq(CommandCurrentView::getCommandId, id));
         insertRelations(id, validated.sceneIds(), validated.currentViewIds());
+        CommandAuditSnapshot after = commandAuditService.capture(id);
+        commandAuditService.record(
+                id, CommandAuditService.ACTION_UPDATE, before, after,
+                request.changeReason(), CommandAuditService.SOURCE_WEB);
         return get(id);
     }
 
     @Transactional
-    public void delete(Long id) {
-        requireCommand(id);
+    public void delete(Long id, Long version, String reason) {
+        CommandRule command = requireCommandForUpdate(id);
+        requireCurrentVersion(version, command.getVersion());
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException(400, "删除命令时必须填写删除原因");
+        }
+        CommandAuditSnapshot before = commandAuditService.capture(command);
         commandSceneMapper.delete(new LambdaQueryWrapper<CommandScene>().eq(CommandScene::getCommandId, id));
         currentViewMapper.delete(new LambdaQueryWrapper<CommandCurrentView>().eq(CommandCurrentView::getCommandId, id));
-        commandMapper.deleteById(id);
+        int deleted = commandMapper.delete(new LambdaQueryWrapper<CommandRule>()
+                .eq(CommandRule::getId, id)
+                .eq(CommandRule::getVersion, version));
+        if (deleted != 1) {
+            throw concurrentModification();
+        }
+        commandAuditService.record(
+                id, CommandAuditService.ACTION_DELETE, before, null,
+                reason, CommandAuditService.SOURCE_WEB);
     }
 
     private ValidatedRequest validateRequest(CommandRequest request) {
@@ -237,6 +280,24 @@ public class CommandService {
         command.setTargetViewId(request.targetViewId());
     }
 
+    private boolean hasCriticalChanges(
+            CommandRule command,
+            CommandRequest request,
+            ValidatedRequest validated,
+            CommandAuditSnapshot before
+    ) {
+        Set<Long> beforeSceneIds = before.scenes().stream().map(OptionItem::id).collect(Collectors.toSet());
+        Set<Long> beforeViewIds = before.currentViews().stream().map(OptionItem::id).collect(Collectors.toSet());
+        return !Objects.equals(command.getExpressionHtml(), request.expressionHtml())
+                || !Objects.equals(command.getExpressionText(), validated.expressionText())
+                || !Objects.equals(command.getRegexTemplate(), request.regexTemplate())
+                || !Objects.equals(command.getMatchStart(), validated.matchStart())
+                || !Objects.equals(command.getMatchEnd(), validated.matchEnd())
+                || !Objects.equals(command.getTargetViewId(), request.targetViewId())
+                || !beforeSceneIds.equals(validated.sceneIds())
+                || !beforeViewIds.equals(validated.currentViewIds());
+    }
+
     private void insertRelations(Long commandId, Set<Long> sceneIds, Set<Long> currentViewIds) {
         sceneIds.forEach(sceneId -> commandSceneMapper.insert(new CommandScene(commandId, sceneId)));
         currentViewIds.forEach(viewId -> currentViewMapper.insert(new CommandCurrentView(commandId, viewId)));
@@ -248,6 +309,29 @@ public class CommandService {
             throw new BusinessException(404, "命令不存在");
         }
         return command;
+    }
+
+    private CommandRule requireCommandForUpdate(Long id) {
+        CommandRule command = commandMapper.selectOne(new LambdaQueryWrapper<CommandRule>()
+                .eq(CommandRule::getId, id)
+                .last("FOR UPDATE"));
+        if (command == null) {
+            throw new BusinessException(404, "命令不存在");
+        }
+        return command;
+    }
+
+    private void requireCurrentVersion(Long requestedVersion, Long currentVersion) {
+        if (requestedVersion == null) {
+            throw new BusinessException(400, "缺少命令版本，请刷新后重试");
+        }
+        if (!requestedVersion.equals(currentVersion)) {
+            throw concurrentModification();
+        }
+    }
+
+    private BusinessException concurrentModification() {
+        return new BusinessException(409, "该命令已被其他人修改，请刷新后重新确认");
     }
 
     private List<CommandResponse> assemble(List<CommandRule> commands) {
@@ -311,7 +395,7 @@ public class CommandService {
                     target == null ? null : toOption(target),
                     commandScenes.getOrDefault(command.getId(), List.of()),
                     command.getCreatedBy(), command.getUpdatedBy(),
-                    command.getCreatedAt(), command.getUpdatedAt()
+                    command.getCreatedAt(), command.getUpdatedAt(), command.getVersion()
             ));
         }
         return result;

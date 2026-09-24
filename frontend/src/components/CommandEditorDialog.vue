@@ -21,9 +21,24 @@ const preview = ref<RegexPreview>({ valid: false, results: [] })
 const previewing = ref(false)
 let previewTimer: number | undefined
 
-const form = reactive<CommandPayload & { testText: string }>({
+const form = reactive<CommandPayload & { testText: string; changeReason: string }>({
   expressionHtml: '', description: '', regexTemplate: '', matchStart: true, matchEnd: true,
-  currentViewIds: [], targetViewId: undefined, sceneIds: [], testText: '',
+  currentViewIds: [], targetViewId: undefined, sceneIds: [], testText: '', changeReason: '',
+})
+
+const sameIds = (left: number[], right: number[]) =>
+  [...left].sort((a, b) => a - b).join(',') === [...right].sort((a, b) => a - b).join(',')
+
+const criticalChanged = computed(() => {
+  const command = props.command
+  if (!command) return false
+  return form.expressionHtml !== command.expressionHtml
+    || form.regexTemplate !== command.regexTemplate
+    || form.matchStart !== command.matchStart
+    || form.matchEnd !== command.matchEnd
+    || (form.targetViewId ?? undefined) !== (command.targetView?.id ?? undefined)
+    || !sameIds(form.currentViewIds, command.currentViews.map(item => item.id))
+    || !sameIds(form.sceneIds, command.scenes.map(item => item.id))
 })
 
 const hasManualBoundary = computed(() => {
@@ -40,6 +55,13 @@ const rules: FormRules = {
   regexTemplate: [{ required: true, message: '请输入正则表达式', trigger: 'blur' }],
   currentViewIds: [{ type: 'array', required: true, min: 1, message: '至少选择一个所在视图', trigger: 'change' }],
   sceneIds: [{ type: 'array', required: true, min: 1, message: '至少选择一个所属场景', trigger: 'change' }],
+  changeReason: [{
+    validator: (_rule, value, callback) => {
+      if (criticalChanged.value && !String(value ?? '').trim()) callback(new Error('修改关键字段时必须填写修改原因'))
+      else callback()
+    },
+    trigger: 'blur',
+  }],
 }
 
 const commonFragments = computed(() => fragments.value.filter(item => item.common))
@@ -60,6 +82,8 @@ const resetForm = () => {
     currentViewIds: command?.currentViews.map(item => item.id) ?? [],
     targetViewId: command?.targetView?.id,
     sceneIds: command?.scenes.map(item => item.id) ?? (props.defaultSceneId ? [props.defaultSceneId] : []),
+    version: command?.version,
+    changeReason: '',
     testText: '',
   })
   preview.value = { valid: false, results: [] }
@@ -126,6 +150,8 @@ const save = async () => {
       currentViewIds: form.currentViewIds,
       targetViewId: form.targetViewId,
       sceneIds: form.sceneIds,
+      version: props.command?.version,
+      changeReason: criticalChanged.value ? form.changeReason.trim() : undefined,
     }
     if (props.command) await commandApi.update(props.command.id, payload)
     else await commandApi.create(payload)
@@ -184,6 +210,16 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
             <el-select v-model="form.sceneIds" multiple filterable placeholder="可多选" style="width: 100%">
               <el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
+          </el-form-item>
+          <el-form-item v-if="command && criticalChanged" label="关键字段修改原因" prop="changeReason" class="wide-field">
+            <el-input
+              v-model="form.changeReason"
+              type="textarea"
+              :rows="2"
+              maxlength="500"
+              show-word-limit
+              placeholder="请说明本次修改的原因，保存后将写入审计记录"
+            />
           </el-form-item>
         </div>
 

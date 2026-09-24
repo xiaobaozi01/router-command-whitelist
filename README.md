@@ -27,7 +27,9 @@ npm run dev
 
 浏览器访问 `http://localhost:5173`。前端开发服务器会把 `/api` 请求代理至 `http://localhost:8080`。
 
-H2 数据保存在 `backend/data/`，开发控制台地址为 `http://localhost:8080/h2-console`。JDBC URL 与 `application.yml` 中保持一致。
+H2 数据保存在 `backend/data/`。H2 控制台默认关闭；仅在本地排查时可设置
+`H2_CONSOLE_ENABLED=true`，控制台地址为 `http://localhost:8080/h2-console`，JDBC URL 与
+`application.yml` 中保持一致。
 
 ## 登录与权限
 
@@ -69,5 +71,7 @@ app:
 - 正则片段使用 `${NAME}` 引用，名称统一大写，片段之间禁止嵌套引用。
 - 每条命令可以分别设置开头 `^` 和结尾 `$` 匹配边界，默认两者都启用。
 - 后端使用最终正则配合 Java `Matcher.find()` 执行匹配测试。
+- 命令关键字段修改必须填写原因，并记录修改人、时间以及修改前后的字段快照；描述变化不进入审计。
+- 命令使用版本号防止多人编辑时发生静默覆盖，正则片段变化导致的实际正则变化也会写入命令审计。
 - 场景、视图或正则片段被命令引用时禁止删除。
 - H2 使用 MySQL 兼容模式，业务 SQL 避免依赖 H2 专有能力，方便后续迁移 MySQL。

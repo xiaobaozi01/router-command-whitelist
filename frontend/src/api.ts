@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type {
   CommandAuditUsers,
+  CommandAuditEvent,
   CommandPayload,
   CommandRule,
   CurrentUser,
@@ -106,9 +107,13 @@ export const commandApi = {
   page: (params: Record<string, unknown>) => http.get<PageResponse<CommandRule>>('/commands', { params }),
   auditUsers: () => http.get<CommandAuditUsers>('/commands/audit-users'),
   get: (id: number) => http.get<CommandRule>(`/commands/${id}`),
+  auditEvents: (id: number) => http.get<CommandAuditEvent[]>(`/commands/${id}/audit-events`),
+  auditEventPage: (params: { current: number; size: number }) =>
+    http.get<PageResponse<CommandAuditEvent>>('/commands/audit-events', { params }),
   create: (payload: CommandPayload) => http.post<CommandRule>('/commands', payload),
   update: (id: number, payload: CommandPayload) => http.put<CommandRule>(`/commands/${id}`, payload),
-  remove: (id: number) => http.delete(`/commands/${id}`),
+  remove: (id: number, version: number, reason: string) =>
+    http.delete(`/commands/${id}`, { params: { version, reason } }),
   preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
     http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
 }

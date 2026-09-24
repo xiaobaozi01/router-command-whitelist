@@ -5,6 +5,7 @@ import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandAuditUsersResponse;
+import com.example.whitelist.dto.CommandAuditEventResponse;
 import com.example.whitelist.dto.CommandRequest;
 import com.example.whitelist.dto.CommandResponse;
 import com.example.whitelist.dto.RegexPreviewRequest;
@@ -14,6 +15,8 @@ import com.example.whitelist.service.RegexEngineService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
+import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,9 +64,24 @@ public class CommandController {
         return ApiResponse.success(commandService.auditUsers());
     }
 
+    @GetMapping("/audit-events")
+    @RequireRole(AuthRole.ADMIN)
+    public ApiResponse<PageResponse<CommandAuditEventResponse>> auditEventPage(
+            @RequestParam(defaultValue = "1") @Min(1) long current,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long size
+    ) {
+        return ApiResponse.success(commandService.auditEventPage(current, size));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<CommandResponse> get(@PathVariable Long id) {
         return ApiResponse.success(commandService.get(id));
+    }
+
+    @GetMapping("/{id}/audit-events")
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
+    public ApiResponse<List<CommandAuditEventResponse>> auditEvents(@PathVariable Long id) {
+        return ApiResponse.success(commandService.auditEvents(id));
     }
 
     @PostMapping
@@ -80,8 +98,12 @@ public class CommandController {
 
     @DeleteMapping("/{id}")
     @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        commandService.delete(id);
+    public ApiResponse<Void> delete(
+            @PathVariable Long id,
+            @RequestParam Long version,
+            @RequestParam @Size(max = 500, message = "删除原因不能超过500个字符") String reason
+    ) {
+        commandService.delete(id, version, reason);
         return ApiResponse.success();
     }
 

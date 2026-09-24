@@ -6,6 +6,7 @@ import com.example.whitelist.common.BusinessException;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.RegexFragmentRequest;
 import com.example.whitelist.dto.RegexFragmentResponse;
+import com.example.whitelist.dto.CommandAuditSnapshot;
 import com.example.whitelist.entity.CommandRule;
 import com.example.whitelist.entity.RegexFragment;
 import com.example.whitelist.mapper.CommandRuleMapper;
@@ -14,22 +15,28 @@ import com.example.whitelist.util.AuditUtils;
 import com.example.whitelist.util.TimeSort;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RegexFragmentService {
     private final RegexFragmentMapper fragmentMapper;
     private final CommandRuleMapper commandMapper;
     private final RegexEngineService regexEngineService;
+    private final CommandAuditService commandAuditService;
 
     public RegexFragmentService(
             RegexFragmentMapper fragmentMapper,
             CommandRuleMapper commandMapper,
-            RegexEngineService regexEngineService
+            RegexEngineService regexEngineService,
+            CommandAuditService commandAuditService
     ) {
         this.fragmentMapper = fragmentMapper;
         this.commandMapper = commandMapper;
         this.regexEngineService = regexEngineService;
+        this.commandAuditService = commandAuditService;
     }
 
     public PageResponse<RegexFragmentResponse> page(
@@ -71,16 +78,30 @@ public class RegexFragmentService {
         return toResponse(fragment);
     }
 
+    @Transactional
     public RegexFragmentResponse update(Long id, RegexFragmentRequest request) {
         RegexFragment fragment = requireFragment(id);
         regexEngineService.validateFragmentPattern(request.pattern());
         if (!fragment.getName().equals(request.name().trim()) && referenceCount(fragment.getName()) > 0) {
             throw new BusinessException(409, "该片段已被命令引用，不能修改片段名称");
         }
+        List<CommandRule> affectedCommands = referencedCommands(fragment.getName());
+        Map<Long, CommandAuditSnapshot> beforeSnapshots = new LinkedHashMap<>();
+        if (!fragment.getPattern().equals(request.pattern())) {
+            affectedCommands.forEach(command -> beforeSnapshots.put(
+                    command.getId(), commandAuditService.capture(command.getId())));
+        }
         apply(fragment, request);
         fragment.setUpdatedBy(AuditUtils.currentUsername());
         fragment.setUpdatedAt(LocalDateTime.now());
         fragmentMapper.updateById(fragment);
+        beforeSnapshots.forEach((commandId, before) -> commandAuditService.record(
+                commandId,
+                CommandAuditService.ACTION_FRAGMENT_IMPACT,
+                before,
+                commandAuditService.capture(commandId),
+                "正则片段 " + fragment.getName() + " 已修改",
+                CommandAuditService.SOURCE_WEB));
         return toResponse(fragment);
     }
 
@@ -116,9 +137,13 @@ public class RegexFragmentService {
     }
 
     private long referenceCount(String name) {
+        return referencedCommands(name).size();
+    }
+
+    private List<CommandRule> referencedCommands(String name) {
         String reference = "${" + name + "}";
         return commandMapper.selectList(new LambdaQueryWrapper<CommandRule>()
                         .select(CommandRule::getId, CommandRule::getRegexTemplate))
-                .stream().filter(command -> command.getRegexTemplate().contains(reference)).count();
+                .stream().filter(command -> command.getRegexTemplate().contains(reference)).toList();
     }
 }

@@ -19,6 +19,9 @@ public record CommandRequest(
         List<@NotNull Long> currentViewIds,
         Long targetViewId,
         @NotEmpty(message = "至少选择一个所属场景")
-        List<@NotNull Long> sceneIds
+        List<@NotNull Long> sceneIds,
+        Long version,
+        @Size(max = 500, message = "修改原因不能超过500个字符")
+        String changeReason
 ) {
 }
