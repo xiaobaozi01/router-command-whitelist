@@ -47,8 +47,8 @@ class DataMigrationServiceTest {
                 VALUES (21, '日常巡检', 'admin', 'admin', ?, ?)
                 """, timestamp, timestamp);
         jdbcTemplate.update("""
-                INSERT INTO view_definition (id, name, created_by, updated_by, created_at, updated_at)
-                VALUES (31, '用户视图', 'admin', 'admin', ?, ?)
+                INSERT INTO view_definition (id, name, display_order, created_by, updated_by, created_at, updated_at)
+                VALUES (31, '用户视图', 80, 'admin', 'admin', ?, ?)
                 """, timestamp, timestamp);
         jdbcTemplate.update("""
                 INSERT INTO command_rule
@@ -77,6 +77,7 @@ class DataMigrationServiceTest {
                 .contains("\"id\":1001")
                 .contains("\"sceneIds\":[21]")
                 .contains("\"currentViewIds\":[31]");
+        assertThat(files.get("asset-data/views.jsonl")).contains("\"displayOrder\":80");
         assertThat(files.values()).noneMatch(content -> content.contains("local-user"));
 
         MockMultipartFile file = new MockMultipartFile(
@@ -90,6 +91,8 @@ class DataMigrationServiceTest {
         assertThat(imported).isEqualTo(validated);
         assertThat(jdbcTemplate.queryForObject("SELECT name FROM scene WHERE id = 21", String.class))
                 .isEqualTo("日常巡检");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT display_order FROM view_definition WHERE id = 31", Integer.class)).isEqualTo(80);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM command_rule", Long.class)).isEqualTo(1L);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM command_scene", Long.class)).isEqualTo(1L);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM command_current_view", Long.class)).isEqualTo(1L);

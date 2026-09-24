@@ -88,8 +88,9 @@ export const sceneApi = {
 export const viewApi = {
   page: (params: Record<string, unknown>) => http.get<PageResponse<ViewDefinition>>('/views', { params }),
   options: () => http.get<OptionItem[]>('/views/options'),
-  create: (name: string) => http.post<ViewDefinition>('/views', { name }),
-  update: (id: number, name: string) => http.put<ViewDefinition>(`/views/${id}`, { name }),
+  create: (payload: { name: string; displayOrder: number }) => http.post<ViewDefinition>('/views', payload),
+  update: (id: number, payload: { name: string; displayOrder: number }) =>
+    http.put<ViewDefinition>(`/views/${id}`, payload),
   remove: (id: number) => http.delete(`/views/${id}`),
 }
 

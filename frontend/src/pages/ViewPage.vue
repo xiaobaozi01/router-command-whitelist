@@ -15,7 +15,7 @@ const query = reactive({ current: 1, size: 10, keyword: '', sortField: '', sortO
 const dialogVisible = ref(false)
 const saving = ref(false)
 const editingId = ref<number>()
-const form = reactive({ name: '' })
+const form = reactive({ name: '', displayOrder: 0 })
 const formRef = ref<FormInstance>()
 
 const load = async () => {
@@ -32,12 +32,13 @@ const sort = ({ prop, order }: { prop: string; order: string | null }) => {
   load()
 }
 const rowIndex = (index: number) => index + 1
-const openCreate = () => { editingId.value = undefined; form.name = ''; dialogVisible.value = true }
-const openEdit = (row: ViewDefinition) => { editingId.value = row.id; form.name = row.name; dialogVisible.value = true }
+const openCreate = () => { editingId.value = undefined; Object.assign(form, { name: '', displayOrder: 0 }); dialogVisible.value = true }
+const openEdit = (row: ViewDefinition) => { editingId.value = row.id; Object.assign(form, { name: row.name, displayOrder: row.displayOrder }); dialogVisible.value = true }
 const save = async () => {
   await formRef.value?.validate(); saving.value = true
   try {
-    if (editingId.value) await viewApi.update(editingId.value, form.name); else await viewApi.create(form.name)
+    const payload = { name: form.name, displayOrder: form.displayOrder }
+    if (editingId.value) await viewApi.update(editingId.value, payload); else await viewApi.create(payload)
     ElMessage.success(editingId.value ? '视图已更新' : '视图已创建'); dialogVisible.value = false; load()
   } catch (error) { ElMessage.error(getErrorMessage(error)) } finally { saving.value = false }
 }
@@ -66,6 +67,7 @@ onMounted(load)
       <el-table v-loading="loading" :data="records" @sort-change="sort">
         <el-table-column type="index" label="序号" width="70" align="center" :index="rowIndex" />
         <el-table-column prop="name" label="视图名称" min-width="280" />
+        <el-table-column prop="displayOrder" label="展示顺序" width="110" align="center" />
         <el-table-column prop="commandCount" label="被命令引用" width="150"><template #default="{ row }"><el-tag :type="row.commandCount ? 'warning' : 'info'" effect="plain">{{ row.commandCount }} 条</el-tag></template></el-table-column>
         <el-table-column prop="createdBy" label="创建人" width="120" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="170" sortable="custom"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
@@ -77,7 +79,19 @@ onMounted(load)
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
   </section>
   <el-dialog v-if="isAdmin" v-model="dialogVisible" :title="editingId ? '编辑视图' : '新建视图'" width="460px" destroy-on-close>
-    <el-form ref="formRef" :model="form" label-position="top"><el-form-item label="视图名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入视图名称' }]"><el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：系统视图" @keyup.enter="save" /></el-form-item></el-form>
+    <el-form ref="formRef" :model="form" label-position="top">
+      <el-form-item label="视图名称" prop="name" :rules="[{ required: true, whitespace: true, message: '请输入视图名称' }]">
+        <el-input v-model="form.name" maxlength="100" show-word-limit spellcheck="false" placeholder="例如：系统视图" @keyup.enter="save" />
+      </el-form-item>
+      <el-form-item label="展示顺序" prop="displayOrder" :rules="[{ required: true, message: '请输入展示顺序' }]">
+        <el-input-number v-model="form.displayOrder" :min="0" :step="1" step-strictly controls-position="right" style="width: 100%" />
+        <div class="field-hint">数值越大，在命令行的视图选择列表中越靠前。</div>
+      </el-form-item>
+    </el-form>
     <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
   </el-dialog>
 </template>
+
+<style scoped>
+.field-hint { margin-top: 5px; color: #8a96a8; font-size: 12px; line-height: 1.5; }
+</style>

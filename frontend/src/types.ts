@@ -39,6 +39,7 @@ export interface Scene extends OptionItem {
 }
 
 export interface ViewDefinition extends OptionItem {
+  displayOrder: number
   commandCount: number
   createdBy: string
   updatedBy: string

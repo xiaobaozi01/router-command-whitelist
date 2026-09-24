@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record ViewResponse(
         Long id,
         String name,
+        int displayOrder,
         long commandCount,
         String createdBy,
         String updatedBy,

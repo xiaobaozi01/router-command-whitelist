@@ -4,8 +4,8 @@ import com.example.whitelist.auth.AuthRole;
 import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
-import com.example.whitelist.dto.NameRequest;
 import com.example.whitelist.dto.OptionItem;
+import com.example.whitelist.dto.ViewRequest;
 import com.example.whitelist.dto.ViewResponse;
 import com.example.whitelist.service.ViewDefinitionService;
 import jakarta.validation.Valid;
@@ -51,13 +51,13 @@ public class ViewDefinitionController {
 
     @PostMapping
     @RequireRole(AuthRole.ADMIN)
-    public ApiResponse<ViewResponse> create(@Valid @RequestBody NameRequest request) {
+    public ApiResponse<ViewResponse> create(@Valid @RequestBody ViewRequest request) {
         return ApiResponse.success(viewService.create(request));
     }
 
     @PutMapping("/{id}")
     @RequireRole(AuthRole.ADMIN)
-    public ApiResponse<ViewResponse> update(@PathVariable Long id, @Valid @RequestBody NameRequest request) {
+    public ApiResponse<ViewResponse> update(@PathVariable Long id, @Valid @RequestBody ViewRequest request) {
         return ApiResponse.success(viewService.update(id, request));
     }
 

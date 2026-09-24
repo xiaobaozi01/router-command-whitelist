@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.whitelist.common.BusinessException;
 import com.example.whitelist.common.PageResponse;
-import com.example.whitelist.dto.NameRequest;
 import com.example.whitelist.dto.OptionItem;
+import com.example.whitelist.dto.ViewRequest;
 import com.example.whitelist.dto.ViewResponse;
 import com.example.whitelist.entity.CommandCurrentView;
 import com.example.whitelist.entity.CommandRule;
@@ -44,12 +44,18 @@ public class ViewDefinitionService {
         TimeSort timeSort = TimeSort.parse(sortField, sortOrder);
         LambdaQueryWrapper<ViewDefinition> query = new LambdaQueryWrapper<ViewDefinition>()
                 .like(keyword != null && !keyword.isBlank(), ViewDefinition::getName, keyword);
-        if (timeSort.field() == TimeSort.Field.CREATED_AT) {
+        if (!timeSort.specified()) {
+            query.orderByDesc(ViewDefinition::getDisplayOrder)
+                    .orderByAsc(ViewDefinition::getName)
+                    .orderByAsc(ViewDefinition::getId);
+        } else if (timeSort.field() == TimeSort.Field.CREATED_AT) {
             query.orderBy(true, timeSort.ascending(), ViewDefinition::getCreatedAt);
         } else {
             query.orderBy(true, timeSort.ascending(), ViewDefinition::getUpdatedAt);
         }
-        query.orderBy(true, timeSort.ascending(), ViewDefinition::getId);
+        if (timeSort.specified()) {
+            query.orderBy(true, timeSort.ascending(), ViewDefinition::getId);
+        }
         Page<ViewDefinition> page = viewMapper.selectPage(Page.of(current, size),
                 query);
         Set<Long> ids = page.getRecords().stream().map(ViewDefinition::getId).collect(Collectors.toSet());
@@ -71,13 +77,16 @@ public class ViewDefinitionService {
     }
 
     public List<OptionItem> options() {
-        return viewMapper.selectList(new LambdaQueryWrapper<ViewDefinition>().orderByAsc(ViewDefinition::getName)).stream()
+        return viewMapper.selectList(new LambdaQueryWrapper<ViewDefinition>()
+                        .orderByDesc(ViewDefinition::getDisplayOrder)
+                        .orderByAsc(ViewDefinition::getName)
+                        .orderByAsc(ViewDefinition::getId)).stream()
                 .map(item -> new OptionItem(item.getId(), item.getName())).toList();
     }
 
-    public ViewResponse create(NameRequest request) {
+    public ViewResponse create(ViewRequest request) {
         ViewDefinition view = new ViewDefinition();
-        view.setName(request.name().trim());
+        apply(view, request);
         view.setCreatedBy(AuditUtils.currentUsername());
         view.setUpdatedBy(view.getCreatedBy());
         view.setCreatedAt(LocalDateTime.now());
@@ -86,9 +95,9 @@ public class ViewDefinitionService {
         return toResponse(view, 0);
     }
 
-    public ViewResponse update(Long id, NameRequest request) {
+    public ViewResponse update(Long id, ViewRequest request) {
         ViewDefinition view = requireView(id);
-        view.setName(request.name().trim());
+        apply(view, request);
         view.setUpdatedBy(AuditUtils.currentUsername());
         view.setUpdatedAt(LocalDateTime.now());
         viewMapper.updateById(view);
@@ -121,9 +130,15 @@ public class ViewDefinitionService {
         return commandIds.size();
     }
 
+    private void apply(ViewDefinition view, ViewRequest request) {
+        view.setName(request.name().trim());
+        view.setDisplayOrder(request.displayOrder());
+    }
+
     private ViewResponse toResponse(ViewDefinition view, long count) {
         return new ViewResponse(
-                view.getId(), view.getName(), count, view.getCreatedBy(), view.getUpdatedBy(),
+                view.getId(), view.getName(), view.getDisplayOrder(), count,
+                view.getCreatedBy(), view.getUpdatedBy(),
                 view.getCreatedAt(), view.getUpdatedAt());
     }
 }

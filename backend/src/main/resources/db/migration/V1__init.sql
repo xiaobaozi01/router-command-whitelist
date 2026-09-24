@@ -11,6 +11,7 @@ CREATE TABLE scene (
 CREATE TABLE view_definition (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
     created_by VARCHAR(64) NOT NULL DEFAULT '系统',
     updated_by VARCHAR(64) NOT NULL DEFAULT '系统',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -44,6 +44,7 @@ public final class DataMigrationData {
     public record ViewData(
             Long id,
             String name,
+            Integer displayOrder,
             String createdBy,
             String updatedBy,
             LocalDateTime createdAt,

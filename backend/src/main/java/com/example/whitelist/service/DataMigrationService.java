@@ -312,6 +312,7 @@ public class DataMigrationService {
         for (ViewData view : data.views) {
             require(viewIds.contains(view.id()), "视图编号无效");
             requireText(view.name(), "视图名称", 100, false);
+            require(view.displayOrder() == null || view.displayOrder() >= 0, "视图展示顺序不能小于0");
             require(viewNames.add(view.name()), "视图名称重复：" + view.name());
             requireAudit(view.createdBy(), view.updatedBy(), view.createdAt(), view.updatedAt());
         }
@@ -390,15 +391,17 @@ public class DataMigrationService {
                     statement.setTimestamp(6, timestamp(item.updatedAt()));
                 });
         jdbcTemplate.batchUpdate(
-                "INSERT INTO view_definition (id, name, created_by, updated_by, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO view_definition "
+                        + "(id, name, display_order, created_by, updated_by, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 data.views, BATCH_SIZE, (statement, item) -> {
                     statement.setLong(1, item.id());
                     statement.setString(2, item.name());
-                    statement.setString(3, item.createdBy());
-                    statement.setString(4, item.updatedBy());
-                    statement.setTimestamp(5, timestamp(item.createdAt()));
-                    statement.setTimestamp(6, timestamp(item.updatedAt()));
+                    statement.setInt(3, item.displayOrder() == null ? 0 : item.displayOrder());
+                    statement.setString(4, item.createdBy());
+                    statement.setString(5, item.updatedBy());
+                    statement.setTimestamp(6, timestamp(item.createdAt()));
+                    statement.setTimestamp(7, timestamp(item.updatedAt()));
                 });
         jdbcTemplate.batchUpdate(
                 "INSERT INTO command_rule "
@@ -580,7 +583,7 @@ public class DataMigrationService {
 
     private ViewData toData(ViewDefinition view) {
         return new ViewData(
-                view.getId(), view.getName(), view.getCreatedBy(), view.getUpdatedBy(),
+                view.getId(), view.getName(), view.getDisplayOrder(), view.getCreatedBy(), view.getUpdatedBy(),
                 view.getCreatedAt(), view.getUpdatedAt());
     }
 
