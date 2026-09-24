@@ -72,17 +72,26 @@ watch(() => props.modelValue, open => {
 <template>
   <el-drawer
     :model-value="modelValue"
-    :title="command ? `变更记录 · ${command.expressionText}` : '命令审计日志'"
     size="680px"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="drawer-title">
+        <span>{{ command ? '变更记录 ·' : '命令审计日志' }}</span>
+        <span v-if="command" class="command-rich-title" v-html="command.expressionHtml"></span>
+      </div>
+    </template>
     <div v-loading="loading" class="audit-list">
       <el-empty v-if="!loading && !events.length" description="暂无变更记录" />
       <article v-for="event in events" :key="event.id" class="audit-card">
         <header>
           <div>
             <el-tag size="small" effect="plain">{{ actionLabels[event.action] ?? event.action }}</el-tag>
-            <span v-if="!command" class="command-name">{{ event.afterSnapshot?.expressionText ?? event.beforeSnapshot?.expressionText ?? `命令 #${event.commandId}` }}</span>
+            <span
+              v-if="!command"
+              class="command-name"
+              v-html="event.afterSnapshot?.expressionHtml ?? event.beforeSnapshot?.expressionHtml ?? `命令 #${event.commandId}`"
+            ></span>
             <strong>{{ event.actorDisplayName }}</strong>
             <span class="username">{{ event.actorUsername }}</span>
           </div>
@@ -92,8 +101,24 @@ watch(() => props.modelValue, open => {
         <div class="changes">
           <div v-for="field in event.changedFields" :key="field" class="change-row">
             <strong>{{ fieldLabels[field] ?? field }}</strong>
-            <div class="change-value before"><span>修改前</span><code>{{ valueOf(event.beforeSnapshot, field) }}</code></div>
-            <div class="change-value after"><span>修改后</span><code>{{ valueOf(event.afterSnapshot, field) }}</code></div>
+            <div class="change-value before">
+              <span>修改前</span>
+              <div
+                v-if="field === 'expression' && event.beforeSnapshot"
+                class="rich-expression"
+                v-html="event.beforeSnapshot.expressionHtml"
+              ></div>
+              <code v-else>{{ valueOf(event.beforeSnapshot, field) }}</code>
+            </div>
+            <div class="change-value after">
+              <span>修改后</span>
+              <div
+                v-if="field === 'expression' && event.afterSnapshot"
+                class="rich-expression"
+                v-html="event.afterSnapshot.expressionHtml"
+              ></div>
+              <code v-else>{{ valueOf(event.afterSnapshot, field) }}</code>
+            </div>
           </div>
         </div>
       </article>
@@ -110,12 +135,16 @@ watch(() => props.modelValue, open => {
 </template>
 
 <style scoped>
+.drawer-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: #303133; font-size: 16px; line-height: 1.5; }
+.command-rich-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-rich-title :deep(p) { display: inline; margin: 0; }
 .audit-list { min-height: 180px; }
 .audit-card { margin-bottom: 16px; padding: 16px; border: 1px solid #e3e8ef; border-radius: 8px; background: #fff; }
 .audit-card header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #eef1f5; }
 .audit-card header > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .audit-card time, .username { color: #8490a2; font-size: 12px; }
 .command-name { max-width: 180px; overflow: hidden; color: #3f4b5c; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.command-name :deep(p) { display: inline; margin: 0; }
 .reason { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 12px 0; font-size: 13px; }
 .reason span { color: #8490a2; }
 .changes { display: grid; gap: 10px; }
@@ -124,6 +153,8 @@ watch(() => props.modelValue, open => {
 .change-value { min-width: 0; padding: 7px 9px; border-radius: 6px; background: #f7f8fa; }
 .change-value span { display: block; margin-bottom: 4px; color: #8994a5; font-size: 11px; }
 .change-value code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; }
+.rich-expression { overflow-wrap: anywhere; font-size: 13px; line-height: 1.45; }
+.rich-expression :deep(p) { margin: 0; }
 .change-value.before { background: #fff5f4; }
 .change-value.after { background: #f1faf6; }
 </style>
