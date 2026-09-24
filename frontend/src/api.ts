@@ -1,5 +1,8 @@
 import axios from 'axios'
 import type {
+  AiFormatCommandResult,
+  AiGenerateRegexResult,
+  AiStatus,
   CommandAuditUsers,
   CommandAuditEvent,
   CommandApproval,
@@ -118,6 +121,23 @@ export const commandApi = {
     http.delete(`/commands/${id}`, { params: { version, reason } }),
   preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
     http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
+}
+
+export const aiApi = {
+  status: () => http.get<AiStatus>('/ai/status'),
+  formatCommand: (expressionHtml: string, description: string, currentViewIds: number[], targetViewId?: number) =>
+    http.post<AiFormatCommandResult>('/ai/format-command', {
+      expressionHtml, description, currentViewIds, targetViewId,
+    }, { timeout: 35000 }),
+  generateRegex: (payload: {
+    expressionHtml: string
+    description: string
+    currentRegexTemplate: string
+    matchStart: boolean
+    matchEnd: boolean
+    currentViewIds: number[]
+    targetViewId?: number
+  }) => http.post<AiGenerateRegexResult>('/ai/generate-regex', payload, { timeout: 35000 }),
 }
 
 export const commandApprovalApi = {

@@ -31,11 +31,11 @@ public class RegexEngineService {
     }
 
     public String expandAndValidate(String template) {
-        return expandAndValidate(template, loadFragments());
+        return expandAndValidate(template, fragmentsFor(template));
     }
 
     public String expandAndValidate(String template, boolean matchStart, boolean matchEnd) {
-        return expandAndValidate(template, matchStart, matchEnd, loadFragments());
+        return expandAndValidate(template, matchStart, matchEnd, fragmentsFor(template));
     }
 
     public RegexExpander createExpander() {
@@ -50,6 +50,10 @@ public class RegexEngineService {
             fragments.put(fragment.getName(), fragment.getPattern());
         }
         return fragments;
+    }
+
+    private Map<String, String> fragmentsFor(String template) {
+        return template != null && template.contains("${") ? loadFragments() : Map.of();
     }
 
     private String expandAndValidate(String template, Map<String, String> fragments) {

@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Check, Close, Search } from '@element-plus/icons-vue'
-import { commandApi, commandApprovalApi, fragmentApi, getErrorMessage, sceneApi, viewApi } from '../api'
+import { Check, Close, CopyDocument, MagicStick, QuestionFilled, Search } from '@element-plus/icons-vue'
+import { aiApi, commandApi, commandApprovalApi, fragmentApi, getErrorMessage, sceneApi, viewApi } from '../api'
 import { isAdmin } from '../auth'
-import type { CommandPayload, CommandRule, OptionItem, RegexFragment, RegexPreview } from '../types'
+import type {
+  AiFormatCommandResult,
+  AiGenerateRegexResult,
+  AiStatus,
+  CommandPayload,
+  CommandRule,
+  OptionItem,
+  RegexFragment,
+  RegexPreview,
+} from '../types'
 import RegexEditor from './RegexEditor.vue'
 import RichTextEditor from './RichTextEditor.vue'
 
@@ -21,6 +30,15 @@ const fragments = ref<RegexFragment[]>([])
 const fragmentKeyword = ref('')
 const preview = ref<RegexPreview>({ valid: false, results: [] })
 const previewing = ref(false)
+const aiStatus = ref<AiStatus>({ enabled: false, available: false, protocol: '', model: '', message: '正在检查 AI 服务…' })
+const aiStatusLoading = ref(false)
+const aiFormatting = ref(false)
+const aiGenerating = ref(false)
+const aiSuggestionVisible = ref(false)
+const aiSuggestionKind = ref<'format' | 'regex'>('format')
+const formatOriginalHtml = ref('')
+const formatSuggestion = ref<AiFormatCommandResult>()
+const regexSuggestion = ref<AiGenerateRegexResult>()
 let previewTimer: number | undefined
 
 const form = reactive<CommandPayload & { testText: string; changeReason: string }>({
@@ -70,6 +88,11 @@ const rules: FormRules = {
 }
 
 const commonFragments = computed(() => fragments.value.filter(item => item.common))
+const aiAvailable = computed(() => aiStatus.value.available && !aiStatusLoading.value)
+const aiButtonTitle = computed(() => aiAvailable.value
+  ? `${aiStatus.value.protocol}${aiStatus.value.model ? ` · ${aiStatus.value.model}` : ''}`
+  : aiStatus.value.message)
+const aiSuggestionTitle = computed(() => aiSuggestionKind.value === 'format' ? 'AI 格式化建议' : 'AI 正则生成建议')
 const filteredFragments = computed(() => {
   const keyword = fragmentKeyword.value.trim().toUpperCase()
   if (!keyword) return fragments.value
@@ -92,8 +115,100 @@ const resetForm = () => {
     testText: '',
   })
   preview.value = { valid: false, results: [] }
+  formatSuggestion.value = undefined
+  regexSuggestion.value = undefined
+  aiSuggestionVisible.value = false
   fragmentKeyword.value = ''
   nextTick(() => formRef.value?.clearValidate())
+}
+
+const loadAiStatus = async () => {
+  aiStatusLoading.value = true
+  try { aiStatus.value = (await aiApi.status()).data }
+  catch (error) {
+    aiStatus.value = { enabled: false, available: false, protocol: '', model: '', message: getErrorMessage(error) }
+  }
+  finally { aiStatusLoading.value = false }
+}
+
+const formatWithAi = async () => {
+  if (!form.expressionHtml.trim()) {
+    ElMessage.warning('请先输入命令行表达式')
+    return
+  }
+  aiFormatting.value = true
+  try {
+    formatOriginalHtml.value = form.expressionHtml
+    formatSuggestion.value = (await aiApi.formatCommand(
+      form.expressionHtml,
+      form.description,
+      form.currentViewIds,
+      form.targetViewId,
+    )).data
+    regexSuggestion.value = undefined
+    aiSuggestionKind.value = 'format'
+    aiSuggestionVisible.value = true
+  } catch (error) { ElMessage.error(getErrorMessage(error)) }
+  finally { aiFormatting.value = false }
+}
+
+const generateRegexWithAi = async () => {
+  if (!form.expressionHtml.trim()) {
+    ElMessage.warning('请先输入命令行表达式')
+    return
+  }
+  aiGenerating.value = true
+  try {
+    regexSuggestion.value = (await aiApi.generateRegex({
+      expressionHtml: form.expressionHtml,
+      description: form.description,
+      currentRegexTemplate: form.regexTemplate,
+      matchStart: form.matchStart,
+      matchEnd: form.matchEnd,
+      currentViewIds: form.currentViewIds,
+      targetViewId: form.targetViewId,
+    })).data
+    formatSuggestion.value = undefined
+    aiSuggestionKind.value = 'regex'
+    aiSuggestionVisible.value = true
+  } catch (error) { ElMessage.error(getErrorMessage(error)) }
+  finally { aiGenerating.value = false }
+}
+
+const copyAiSuggestion = async (content: string, label: string) => {
+  if (!content) return
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+    await navigator.clipboard.writeText(content)
+    ElMessage.success(`${label}已复制`)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = content
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const copied = document.execCommand('copy')
+    textarea.remove()
+    if (copied) ElMessage.success(`${label}已复制`)
+    else ElMessage.error('复制失败，请手动选择复制')
+  }
+}
+
+const applyAiSuggestion = () => {
+  if (aiSuggestionKind.value === 'format' && formatSuggestion.value) {
+    form.expressionHtml = formatSuggestion.value.formattedHtml
+    void nextTick(() => formRef.value?.validateField('expressionHtml').catch(() => undefined))
+    ElMessage.success('已应用 AI 格式化建议')
+  }
+  if (aiSuggestionKind.value === 'regex' && regexSuggestion.value) {
+    form.regexTemplate = regexSuggestion.value.regexTemplate
+    form.testText = [...regexSuggestion.value.positiveCases, ...regexSuggestion.value.negativeCases].join('\n')
+    preview.value = regexSuggestion.value.preview
+    void nextTick(() => formRef.value?.validateField('regexTemplate').catch(() => undefined))
+    ElMessage.success('已应用 AI 正则和测试数据')
+  }
+  aiSuggestionVisible.value = false
 }
 
 const loadOptions = async () => {
@@ -174,7 +289,7 @@ const save = async () => {
 }
 
 watch(() => props.modelValue, (open) => {
-  if (open) { resetForm(); loadOptions(); nextTick(schedulePreview) }
+  if (open) { resetForm(); loadOptions(); loadAiStatus(); nextTick(schedulePreview) }
 })
 watch(() => props.command, () => { if (props.modelValue) resetForm() })
 </script>
@@ -192,7 +307,21 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
     <div v-loading="loadingOptions" class="command-editor-layout">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="command-form">
         <div class="form-grid">
-          <el-form-item label="命令行表达式" prop="expressionHtml" class="wide-field">
+          <el-form-item prop="expressionHtml" class="wide-field">
+            <template #label>
+              <span class="field-label-row">
+                <span>命令行表达式</span>
+                <el-button
+                  type="primary"
+                  link
+                  :icon="MagicStick"
+                  :loading="aiFormatting"
+                  :disabled="!aiAvailable"
+                  :title="aiButtonTitle"
+                  @click="formatWithAi"
+                >AI 格式化</el-button>
+              </span>
+            </template>
             <RichTextEditor v-model="form.expressionHtml" />
           </el-form-item>
           <el-form-item label="命令行描述" class="wide-field">
@@ -235,7 +364,42 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
         </div>
 
         <div class="regex-section">
-          <div class="section-heading"><strong>匹配正则</strong><span>Java 正则 · 按边界设置匹配 · 光标移到括号旁可查看配对</span></div>
+          <div class="section-heading">
+            <strong>匹配正则</strong>
+            <span>Java 正则 · 按边界设置匹配 · 光标移到括号旁可查看配对</span>
+            <div class="ai-heading-actions">
+              <el-button
+                type="primary"
+                link
+                :icon="MagicStick"
+                :loading="aiGenerating"
+                :disabled="!aiAvailable"
+                :title="aiButtonTitle"
+                @click="generateRegexWithAi"
+              >AI 生成</el-button>
+              <el-popover
+                placement="bottom-end"
+                trigger="click"
+                :width="390"
+                popper-class="ai-quality-popover"
+              >
+                <template #reference>
+                  <el-button link :icon="QuestionFilled">了解更多</el-button>
+                </template>
+                <div class="ai-quality-content">
+                  <strong>如何提升生成准确率</strong>
+                  <p>AI 会根据命令格式和视图上下文理解命令。信息越准确、越完整，生成的正则表达式和测试数据就越可靠。</p>
+                  <ul>
+                    <li>命令行格式标记越准确，AI 越容易识别固定关键字、参数、可选项和不支持内容。</li>
+                    <li>当前视图选择越准确，AI 越容易判断命令适用的上下文；多个视图只选择真正支持该命令的视图。</li>
+                    <li>命令执行后会切换视图时，准确选择下一级视图可以帮助 AI 理解命令效果。</li>
+                    <li>错误的视图信息可能降低生成质量；不确定的下一级视图可以暂时不选。</li>
+                  </ul>
+                  <p class="ai-quality-note">AI 结果仅作为建议，应用前请检查正则和测试数据。</p>
+                </div>
+              </el-popover>
+            </div>
+          </div>
           <div class="boundary-options">
             <span>匹配边界</span>
             <el-checkbox v-model="form.matchStart" @change="schedulePreview">开头匹配 <code>^</code></el-checkbox>
@@ -299,6 +463,94 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
       <el-button type="primary" :loading="saving" @click="save">{{ isAdmin ? '保存命令' : '提交审批' }}</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="aiSuggestionVisible"
+    :title="aiSuggestionTitle"
+    width="720px"
+    append-to-body
+    destroy-on-close
+  >
+    <template v-if="aiSuggestionKind === 'format' && formatSuggestion">
+      <div class="ai-compare-grid">
+        <section>
+          <div class="ai-preview-title">格式化前</div>
+          <div class="ai-command-preview command-rich" v-html="formatOriginalHtml"></div>
+        </section>
+        <section>
+          <div class="ai-preview-title">格式化后</div>
+          <div class="ai-command-preview command-rich" v-html="formatSuggestion.formattedHtml"></div>
+        </section>
+      </div>
+      <p v-if="formatSuggestion.explanation" class="ai-explanation">{{ formatSuggestion.explanation }}</p>
+      <el-alert
+        v-for="warning in formatSuggestion.warnings"
+        :key="warning"
+        class="ai-warning"
+        type="warning"
+        :closable="false"
+        :title="warning"
+      />
+    </template>
+
+    <template v-if="aiSuggestionKind === 'regex' && regexSuggestion">
+      <div class="ai-regex-result">
+        <div class="ai-preview-title ai-copy-title">
+          <span>正则模板</span>
+          <el-button
+            link
+            type="primary"
+            size="small"
+            :icon="CopyDocument"
+            @click="copyAiSuggestion(regexSuggestion.regexTemplate, '正则模板')"
+          >复制</el-button>
+        </div>
+        <code>{{ regexSuggestion.regexTemplate }}</code>
+      </div>
+      <div class="ai-test-grid">
+        <section>
+          <div class="ai-preview-title ai-copy-title">
+            <span>应当匹配</span>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :icon="CopyDocument"
+              @click="copyAiSuggestion(regexSuggestion.positiveCases.join('\n'), '应当匹配用例')"
+            >复制</el-button>
+          </div>
+          <code v-for="item in regexSuggestion.positiveCases" :key="`positive-${item}`">{{ item }}</code>
+        </section>
+        <section>
+          <div class="ai-preview-title ai-copy-title">
+            <span>不应匹配</span>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :icon="CopyDocument"
+              @click="copyAiSuggestion(regexSuggestion.negativeCases.join('\n'), '不应匹配用例')"
+            >复制</el-button>
+          </div>
+          <code v-for="item in regexSuggestion.negativeCases" :key="`negative-${item}`">{{ item }}</code>
+        </section>
+      </div>
+      <p v-if="regexSuggestion.explanation" class="ai-explanation">{{ regexSuggestion.explanation }}</p>
+      <el-alert
+        v-for="warning in regexSuggestion.warnings"
+        :key="warning"
+        class="ai-warning"
+        type="warning"
+        :closable="false"
+        :title="warning"
+      />
+    </template>
+
+    <template #footer>
+      <el-button @click="aiSuggestionVisible = false">取消</el-button>
+      <el-button type="primary" @click="applyAiSuggestion">应用建议</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -306,10 +558,18 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .command-form { min-width: 0; padding-right: 8px; overflow-y: auto; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .wide-field { grid-column: 1 / -1; }
+.field-label-row { display: inline-flex; align-items: center; justify-content: space-between; width: calc(100% - 12px); vertical-align: top; }
+.wide-field :deep(.el-form-item__label) { width: 100%; }
 .regex-section { margin-top: 2px; padding-top: 18px; border-top: 1px solid #e8edf3; }
-.section-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .section-heading strong { font-size: 14px; }
-.section-heading span { color: #8a96a8; font-size: 11px; }
+.section-heading > span { color: #8a96a8; font-size: 11px; }
+.ai-heading-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; white-space: nowrap; }
+:global(.ai-quality-popover .ai-quality-content > strong) { display: block; color: #344054; font-size: 14px; }
+:global(.ai-quality-popover .ai-quality-content p) { margin: 9px 0; color: #667085; font-size: 12px; line-height: 1.65; }
+:global(.ai-quality-popover .ai-quality-content ul) { margin: 8px 0; padding-left: 19px; color: #475467; font-size: 12px; line-height: 1.65; }
+:global(.ai-quality-popover .ai-quality-content li + li) { margin-top: 5px; }
+:global(.ai-quality-popover .ai-quality-content .ai-quality-note) { margin-bottom: 0; color: #8a5a12; }
 .boundary-options { display: flex; align-items: center; gap: 16px; min-height: 38px; margin-bottom: 10px; padding: 5px 10px; border: 1px solid #e2e8f1; border-radius: 7px; background: #fafbfd; }
 .boundary-options > span { color: #657289; font-size: 12px; font-weight: 600; }
 .boundary-options code { margin-left: 3px; color: #2856d6; font: 600 12px "SFMono-Regular", Consolas, monospace; }
@@ -342,4 +602,15 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .fragment-card > span { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .fragment-card code { color: #2856d6; font: 600 11px "SFMono-Regular", Consolas, monospace; }
 .fragment-card small { display: block; margin-top: 6px; color: #7d899b; line-height: 1.4; }
+.ai-compare-grid, .ai-test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ai-preview-title { margin-bottom: 7px; color: #6d7b8f; font-size: 12px; font-weight: 600; }
+.ai-copy-title { display: flex; align-items: center; justify-content: space-between; min-height: 24px; }
+.ai-command-preview { min-height: 70px; padding: 12px; border: 1px solid #e2e8f1; border-radius: 7px; background: #fafbfd; overflow-wrap: anywhere; }
+.ai-regex-result { padding: 12px; border: 1px solid #dce8e4; border-radius: 7px; background: #f7fbfa; }
+.ai-regex-result > code { display: block; color: #21644f; font: 12px/1.6 "SFMono-Regular", Consolas, monospace; word-break: break-all; }
+.ai-test-grid { margin-top: 15px; }
+.ai-test-grid section { min-width: 0; padding: 10px; border: 1px solid #e5eaf1; border-radius: 7px; }
+.ai-test-grid code { display: block; padding: 5px 0; color: #3b465a; font: 11px/1.5 "SFMono-Regular", Consolas, monospace; overflow-wrap: anywhere; }
+.ai-explanation { margin: 14px 0 0; color: #56647a; line-height: 1.65; }
+.ai-warning { margin-top: 10px; }
 </style>

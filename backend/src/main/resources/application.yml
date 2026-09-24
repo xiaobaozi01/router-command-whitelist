@@ -32,6 +32,20 @@ app:
     username: admin
     password: admin123
     display-name: 系统管理员
+  ai:
+    enabled: ${AI_ENABLED:false}
+    protocol: ${AI_PROTOCOL:mock}
+    base-url: ${AI_BASE_URL:}
+    model: ${AI_MODEL:}
+    api-key: ${AI_API_KEY:}
+    auth-mode: ${AI_AUTH_MODE:auto}
+    structured-output-mode: ${AI_STRUCTURED_OUTPUT_MODE:prompt-only}
+    thinking-mode: ${AI_THINKING_MODE:auto}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:2000}
+    openai-path: ${AI_OPENAI_PATH:/v1/chat/completions}
+    anthropic-path: ${AI_ANTHROPIC_PATH:/v1/messages}
+    anthropic-version: ${AI_ANTHROPIC_VERSION:2023-06-01}
   github-sync:
     enabled: ${GITHUB_SYNC_ENABLED:false}
     repository-url: ${GITHUB_SYNC_REPOSITORY_URL:}

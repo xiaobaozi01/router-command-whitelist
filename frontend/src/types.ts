@@ -177,6 +177,29 @@ export interface RegexPreview {
   results: TestLineResult[]
 }
 
+export interface AiStatus {
+  enabled: boolean
+  available: boolean
+  protocol: string
+  model: string
+  message: string
+}
+
+export interface AiFormatCommandResult {
+  formattedHtml: string
+  explanation: string
+  warnings: string[]
+}
+
+export interface AiGenerateRegexResult {
+  regexTemplate: string
+  positiveCases: string[]
+  negativeCases: string[]
+  explanation: string
+  warnings: string[]
+  preview: RegexPreview
+}
+
 export interface DataMigrationSummary {
   regexFragments: number
   scenes: number
