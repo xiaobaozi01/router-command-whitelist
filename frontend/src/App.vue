@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Collection, Connection, DataAnalysis, FolderOpened, Tickets, UserFilled } from '@element-plus/icons-vue'
-import { isAdmin } from './auth'
+import { Collection, Connection, DataAnalysis, Finished, FolderOpened, Tickets, UserFilled } from '@element-plus/icons-vue'
+import { canEditCommands, isAdmin } from './auth'
 import UserAccountMenu from './components/UserAccountMenu.vue'
 
 const route = useRoute()
@@ -24,6 +24,10 @@ const activeMenu = computed(() => route.path.startsWith('/scenes/') ? '/scenes' 
         <el-menu-item index="/commands">
           <el-icon><Tickets /></el-icon>
           <span>命令行管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="canEditCommands" index="/command-approvals">
+          <el-icon><Finished /></el-icon>
+          <span>{{ isAdmin ? '命令审批' : '我的申请' }}</span>
         </el-menu-item>
         <el-menu-item index="/scenes">
           <el-icon><Collection /></el-icon>

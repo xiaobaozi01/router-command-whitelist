@@ -2,7 +2,8 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Check, Close, Search } from '@element-plus/icons-vue'
-import { commandApi, fragmentApi, getErrorMessage, sceneApi, viewApi } from '../api'
+import { commandApi, commandApprovalApi, fragmentApi, getErrorMessage, sceneApi, viewApi } from '../api'
+import { isAdmin } from '../auth'
 import type { CommandPayload, CommandRule, OptionItem, RegexFragment, RegexPreview } from '../types'
 import RegexEditor from './RegexEditor.vue'
 import RichTextEditor from './RichTextEditor.vue'
@@ -42,6 +43,9 @@ const criticalChanged = computed(() => {
     || !sameIds(form.sceneIds, command.scenes.map(item => item.id))
 })
 
+const requiresChangeReason = computed(() => Boolean(props.command)
+  && (!isAdmin.value || criticalChanged.value))
+
 const hasManualBoundary = computed(() => {
   const template = form.regexTemplate
   if (template.startsWith('^')) return true
@@ -58,7 +62,7 @@ const rules: FormRules = {
   sceneIds: [{ type: 'array', required: true, min: 1, message: '至少选择一个所属场景', trigger: 'change' }],
   changeReason: [{
     validator: (_rule, value, callback) => {
-      if (criticalChanged.value && !String(value ?? '').trim()) callback(new Error('修改关键字段时必须填写修改原因'))
+      if (requiresChangeReason.value && !String(value ?? '').trim()) callback(new Error('请填写修改原因'))
       else callback()
     },
     trigger: 'blur',
@@ -152,11 +156,17 @@ const save = async () => {
       targetViewId: form.targetViewId,
       sceneIds: form.sceneIds,
       version: props.command?.version,
-      changeReason: criticalChanged.value ? form.changeReason.trim() : undefined,
+      changeReason: requiresChangeReason.value ? form.changeReason.trim() : undefined,
     }
-    if (props.command) await commandApi.update(props.command.id, payload)
-    else await commandApi.create(payload)
-    ElMessage.success(props.command ? '命令已更新' : '命令已创建')
+    if (isAdmin.value) {
+      if (props.command) await commandApi.update(props.command.id, payload)
+      else await commandApi.create(payload)
+      ElMessage.success(props.command ? '命令已更新' : '命令已创建')
+    } else {
+      if (props.command) await commandApprovalApi.submitUpdate(props.command.id, payload)
+      else await commandApprovalApi.submitCreate(payload)
+      ElMessage.success('已提交管理员审批')
+    }
     emit('update:modelValue', false)
     emit('saved')
   } catch (error) { ElMessage.error(getErrorMessage(error)) }
@@ -212,14 +222,14 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
               <el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="command && criticalChanged" label="关键字段修改原因" prop="changeReason" class="wide-field">
+          <el-form-item v-if="command && requiresChangeReason" label="修改原因" prop="changeReason" class="wide-field">
             <el-input
               v-model="form.changeReason"
               type="textarea"
               :rows="2"
               maxlength="500"
               show-word-limit
-              placeholder="请说明本次修改的原因，保存后将写入审计记录"
+              :placeholder="isAdmin ? '请说明本次修改的原因' : '请说明本次修改的原因，将随申请提交审批'"
             />
           </el-form-item>
         </div>
@@ -286,7 +296,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
     </div>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="save">保存命令</el-button>
+      <el-button type="primary" :loading="saving" @click="save">{{ isAdmin ? '保存命令' : '提交审批' }}</el-button>
     </template>
   </el-dialog>
 </template>

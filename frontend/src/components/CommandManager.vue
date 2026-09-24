@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Clock, Plus, Refresh, Search } from '@element-plus/icons-vue'
-import { commandApi, getErrorMessage, sceneApi, viewApi } from '../api'
+import { commandApi, commandApprovalApi, getErrorMessage, sceneApi, viewApi } from '../api'
 import { canEditCommands, isAdmin } from '../auth'
 import type { CommandRule, OptionItem } from '../types'
 import CommandEditorDialog from './CommandEditorDialog.vue'
@@ -62,17 +62,26 @@ const openAllAudits = () => { auditing.value = undefined; auditVisible.value = t
 const remove = async (row: CommandRule) => {
   try {
     const { value } = await ElMessageBox.prompt(
-      `确定删除命令“${row.expressionText}”吗？删除后命令不可恢复，请填写删除原因。`,
-      '删除命令',
+      isAdmin.value
+        ? `确定删除命令“${row.expressionText}”吗？删除后命令不可恢复，请填写删除原因。`
+        : `确定提交命令“${row.expressionText}”的删除申请吗？管理员审批通过后才会删除。`,
+      isAdmin.value ? '删除命令' : '申请删除命令',
       {
         type: 'warning',
-        confirmButtonText: '确认删除',
+        confirmButtonText: isAdmin.value ? '确认删除' : '提交申请',
         inputPlaceholder: '删除原因',
         inputValidator: value => Boolean(value.trim()) || '必须填写删除原因',
         inputErrorMessage: '必须填写删除原因',
       },
     )
-    await commandApi.remove(row.id, row.version, value.trim()); ElMessage.success('命令已删除'); refresh()
+    if (isAdmin.value) {
+      await commandApi.remove(row.id, row.version, value.trim())
+      ElMessage.success('命令已删除')
+      refresh()
+    } else {
+      await commandApprovalApi.submitDelete(row.id, row.version, value.trim())
+      ElMessage.success('删除申请已提交管理员审批')
+    }
   } catch (error) { if (error !== 'cancel' && error !== 'close') ElMessage.error(getErrorMessage(error)) }
 }
 

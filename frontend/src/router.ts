@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/scenes', component: () => import('./pages/ScenePage.vue'), meta: { title: '场景管理' } },
     { path: '/scenes/:id', component: () => import('./pages/SceneDetailPage.vue'), meta: { title: '场景详情' } },
     { path: '/commands', component: () => import('./pages/CommandPage.vue'), meta: { title: '命令行管理' } },
+    { path: '/command-approvals', component: () => import('./pages/CommandApprovalPage.vue'), meta: { title: '命令审批', roles: ['ADMIN', 'DEVELOPER'] } },
     { path: '/views', component: () => import('./pages/ViewPage.vue'), meta: { title: '视图管理' } },
     { path: '/fragments', component: () => import('./pages/FragmentPage.vue'), meta: { title: '正则片段' } },
     { path: '/users', component: () => import('./pages/UserPage.vue'), meta: { title: '人员管理', roles: ['ADMIN'] } },

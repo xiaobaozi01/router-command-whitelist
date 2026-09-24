@@ -182,10 +182,19 @@ public class CommandService {
 
     @Transactional
     public CommandResponse create(CommandRequest request) {
+        return createInternal(request, AuditUtils.currentUsername(), "创建命令");
+    }
+
+    @Transactional
+    public CommandResponse createFromApproval(CommandRequest request, String submitterUsername, String auditReason) {
+        return createInternal(request, submitterUsername, auditReason);
+    }
+
+    private CommandResponse createInternal(CommandRequest request, String createdBy, String auditReason) {
         ValidatedRequest validated = validateRequest(request);
         CommandRule command = new CommandRule();
         apply(command, request, validated);
-        command.setCreatedBy(AuditUtils.currentUsername());
+        command.setCreatedBy(createdBy);
         command.setUpdatedBy(command.getCreatedBy());
         command.setCreatedAt(LocalDateTime.now());
         command.setUpdatedAt(command.getCreatedAt());
@@ -193,12 +202,31 @@ public class CommandService {
         insertRelations(command.getId(), validated.sceneIds(), validated.currentViewIds());
         commandAuditService.record(
                 command.getId(), CommandAuditService.ACTION_CREATE, null,
-                commandAuditService.capture(command.getId()), "创建命令", CommandAuditService.SOURCE_WEB);
+                commandAuditService.capture(command.getId()), auditReason, CommandAuditService.SOURCE_WEB);
         return get(command.getId());
     }
 
     @Transactional
     public CommandResponse update(Long id, CommandRequest request) {
+        return updateInternal(id, request, AuditUtils.currentUsername(), request.changeReason());
+    }
+
+    @Transactional
+    public CommandResponse updateFromApproval(
+            Long id,
+            CommandRequest request,
+            String submitterUsername,
+            String auditReason
+    ) {
+        return updateInternal(id, request, submitterUsername, auditReason);
+    }
+
+    private CommandResponse updateInternal(
+            Long id,
+            CommandRequest request,
+            String updatedBy,
+            String auditReason
+    ) {
         CommandRule command = requireCommandForUpdate(id);
         requireCurrentVersion(request.version(), command.getVersion());
         CommandAuditSnapshot before = commandAuditService.capture(command);
@@ -208,7 +236,7 @@ public class CommandService {
             throw new BusinessException(400, "修改关键字段时必须填写修改原因");
         }
         apply(command, request, validated);
-        command.setUpdatedBy(AuditUtils.currentUsername());
+        command.setUpdatedBy(updatedBy);
         command.setUpdatedAt(LocalDateTime.now());
         if (commandMapper.updateById(command) != 1) {
             throw concurrentModification();
@@ -219,12 +247,21 @@ public class CommandService {
         CommandAuditSnapshot after = commandAuditService.capture(id);
         commandAuditService.record(
                 id, CommandAuditService.ACTION_UPDATE, before, after,
-                request.changeReason(), CommandAuditService.SOURCE_WEB);
+                auditReason, CommandAuditService.SOURCE_WEB);
         return get(id);
     }
 
     @Transactional
     public void delete(Long id, Long version, String reason) {
+        deleteInternal(id, version, reason);
+    }
+
+    @Transactional
+    public void deleteFromApproval(Long id, Long version, String auditReason) {
+        deleteInternal(id, version, auditReason);
+    }
+
+    private void deleteInternal(Long id, Long version, String reason) {
         CommandRule command = requireCommandForUpdate(id);
         requireCurrentVersion(version, command.getVersion());
         if (reason == null || reason.isBlank()) {

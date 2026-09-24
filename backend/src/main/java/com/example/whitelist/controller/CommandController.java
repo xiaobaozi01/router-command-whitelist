@@ -85,19 +85,19 @@ public class CommandController {
     }
 
     @PostMapping
-    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<CommandResponse> create(@Valid @RequestBody CommandRequest request) {
         return ApiResponse.success(commandService.create(request));
     }
 
     @PutMapping("/{id}")
-    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<CommandResponse> update(@PathVariable Long id, @Valid @RequestBody CommandRequest request) {
         return ApiResponse.success(commandService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
+    @RequireRole(AuthRole.ADMIN)
     public ApiResponse<Void> delete(
             @PathVariable Long id,
             @RequestParam Long version,

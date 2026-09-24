@@ -11,12 +11,14 @@ import com.example.whitelist.dto.DataMigrationData.SceneData;
 import com.example.whitelist.dto.DataMigrationData.ViewData;
 import com.example.whitelist.dto.DataMigrationSummary;
 import com.example.whitelist.entity.CommandCurrentView;
+import com.example.whitelist.entity.CommandApprovalRequest;
 import com.example.whitelist.entity.CommandRule;
 import com.example.whitelist.entity.CommandScene;
 import com.example.whitelist.entity.RegexFragment;
 import com.example.whitelist.entity.Scene;
 import com.example.whitelist.entity.ViewDefinition;
 import com.example.whitelist.mapper.CommandCurrentViewMapper;
+import com.example.whitelist.mapper.CommandApprovalRequestMapper;
 import com.example.whitelist.mapper.CommandRuleMapper;
 import com.example.whitelist.mapper.CommandSceneMapper;
 import com.example.whitelist.mapper.RegexFragmentMapper;
@@ -83,6 +85,7 @@ public class DataMigrationService {
     private final CommandRuleMapper commandMapper;
     private final CommandSceneMapper commandSceneMapper;
     private final CommandCurrentViewMapper commandCurrentViewMapper;
+    private final CommandApprovalRequestMapper commandApprovalRequestMapper;
     private final JdbcTemplate jdbcTemplate;
 
     public DataMigrationService(
@@ -93,6 +96,7 @@ public class DataMigrationService {
             CommandRuleMapper commandMapper,
             CommandSceneMapper commandSceneMapper,
             CommandCurrentViewMapper commandCurrentViewMapper,
+            CommandApprovalRequestMapper commandApprovalRequestMapper,
             JdbcTemplate jdbcTemplate
     ) {
         this.objectMapper = objectMapper;
@@ -102,6 +106,7 @@ public class DataMigrationService {
         this.commandMapper = commandMapper;
         this.commandSceneMapper = commandSceneMapper;
         this.commandCurrentViewMapper = commandCurrentViewMapper;
+        this.commandApprovalRequestMapper = commandApprovalRequestMapper;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -191,6 +196,12 @@ public class DataMigrationService {
 
     @Transactional
     public DataMigrationSummary importData(MultipartFile file) {
+        if (commandApprovalRequestMapper.selectCount(
+                new LambdaQueryWrapper<CommandApprovalRequest>()
+                        .eq(CommandApprovalRequest::getStatus,
+                                CommandApprovalService.STATUS_PENDING)) > 0) {
+            throw new BusinessException(409, "存在待审批的命令申请，请先完成审批后再导入数据");
+        }
         PackageData data = readPackage(file);
         try {
             replaceData(data);

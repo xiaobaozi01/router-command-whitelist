@@ -2,6 +2,7 @@ import axios from 'axios'
 import type {
   CommandAuditUsers,
   CommandAuditEvent,
+  CommandApproval,
   CommandPayload,
   CommandRule,
   CurrentUser,
@@ -117,6 +118,21 @@ export const commandApi = {
     http.delete(`/commands/${id}`, { params: { version, reason } }),
   preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
     http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
+}
+
+export const commandApprovalApi = {
+  page: (params: Record<string, unknown>) =>
+    http.get<PageResponse<CommandApproval>>('/command-approvals', { params }),
+  submitCreate: (payload: CommandPayload) =>
+    http.post<CommandApproval>('/command-approvals/commands', payload),
+  submitUpdate: (id: number, payload: CommandPayload) =>
+    http.put<CommandApproval>(`/command-approvals/commands/${id}`, payload),
+  submitDelete: (id: number, version: number, reason: string) =>
+    http.delete<CommandApproval>(`/command-approvals/commands/${id}`, { params: { version, reason } }),
+  approve: (id: number, comment: string) =>
+    http.post<CommandApproval>(`/command-approvals/${id}/approve`, { comment }),
+  reject: (id: number, comment: string) =>
+    http.post<CommandApproval>(`/command-approvals/${id}/reject`, { comment }),
 }
 
 const migrationForm = (file: File) => {

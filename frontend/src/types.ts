@@ -97,6 +97,44 @@ export interface CommandPayload {
   changeReason?: string
 }
 
+export type CommandApprovalType = 'CREATE' | 'UPDATE' | 'DELETE'
+export type CommandApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export interface CommandApprovalSnapshot {
+  expressionHtml: string
+  expressionText: string
+  description: string
+  regexTemplate: string
+  matchStart: boolean
+  matchEnd: boolean
+  expandedRegex: string
+  currentViews: OptionItem[]
+  targetView?: OptionItem
+  scenes: OptionItem[]
+  version?: number
+}
+
+export interface CommandApproval {
+  id: number
+  requestType: CommandApprovalType
+  status: CommandApprovalStatus
+  targetCommandId?: number
+  targetCommandVersion?: number
+  beforeSnapshot?: CommandApprovalSnapshot
+  proposedSnapshot: CommandApprovalSnapshot
+  changeReason: string
+  submitterUserId?: number
+  submitterUsername: string
+  submitterDisplayName: string
+  submittedAt: string
+  reviewerUsername?: string
+  reviewerDisplayName?: string
+  reviewedAt?: string
+  reviewComment?: string
+  generatedCommandId?: number
+  version: number
+}
+
 export type CommandAuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'FRAGMENT_IMPACT'
 
 export interface CommandAuditSnapshot {
