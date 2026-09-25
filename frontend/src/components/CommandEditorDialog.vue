@@ -9,6 +9,8 @@ import type {
   AiGenerateRegexResult,
   AiStatus,
   CommandApproval,
+  CommandConflictCheckResult,
+  CommandConflictItem,
   CommandPayload,
   CommandRule,
   OptionItem,
@@ -41,6 +43,10 @@ const aiStatusLoading = ref(false)
 const aiFormatting = ref(false)
 const aiGenerating = ref(false)
 const aiSuggestionVisible = ref(false)
+const conflictChecking = ref(false)
+const conflictVisible = ref(false)
+const conflictResult = ref<CommandConflictCheckResult>()
+const checkedConflictSignature = ref('')
 const aiSuggestionKind = ref<'format' | 'regex'>('format')
 const formatOriginalHtml = ref('')
 const formatSuggestion = ref<AiFormatCommandResult>()
@@ -111,6 +117,21 @@ const aiButtonTitle = computed(() => aiAvailable.value
   ? `${aiStatus.value.protocol}${aiStatus.value.model ? ` · ${aiStatus.value.model}` : ''}`
   : aiStatus.value.message)
 const aiSuggestionTitle = computed(() => aiSuggestionKind.value === 'format' ? 'AI 格式化建议' : 'AI 正则生成建议')
+const conflictCheckSignature = computed(() => JSON.stringify({
+  expressionHtml: form.expressionHtml,
+  description: form.description,
+  regexTemplate: form.regexTemplate,
+  matchStart: form.matchStart,
+  matchEnd: form.matchEnd,
+  currentViewIds: [...form.currentViewIds].sort((a, b) => a - b),
+  targetViewId: form.targetViewId,
+}))
+const conflictResultStale = computed(() => Boolean(
+  conflictResult.value && checkedConflictSignature.value !== conflictCheckSignature.value,
+))
+const conflictCheckDisabled = computed(() => !form.expressionHtml.trim()
+  || !form.regexTemplate.trim()
+  || form.currentViewIds.length === 0)
 const filteredFragments = computed(() => {
   const keyword = fragmentKeyword.value.trim().toUpperCase()
   if (!keyword) return fragments.value
@@ -138,6 +159,9 @@ const resetForm = () => {
   formatSuggestion.value = undefined
   regexSuggestion.value = undefined
   aiSuggestionVisible.value = false
+  conflictResult.value = undefined
+  checkedConflictSignature.value = ''
+  conflictVisible.value = false
   fragmentKeyword.value = ''
   nextTick(() => formRef.value?.clearValidate())
 }
@@ -253,6 +277,66 @@ const runPreview = async () => {
   catch (error) { preview.value = { valid: false, error: getErrorMessage(error), results: [] } }
   finally { previewing.value = false }
 }
+
+const checkConflicts = async () => {
+  if (conflictCheckDisabled.value) {
+    ElMessage.warning('请先完整填写命令行表达式、所在视图和正则表达式')
+    return
+  }
+  await runPreview()
+  if (!preview.value.valid) {
+    ElMessage.error(preview.value.error || '请先修正正则表达式')
+    return
+  }
+  conflictChecking.value = true
+  try {
+    conflictResult.value = (await commandApi.checkConflicts({
+      commandId: props.command?.id ?? props.approval?.targetCommandId,
+      approvalRequestId: props.approval?.id,
+      expressionHtml: form.expressionHtml,
+      description: form.description,
+      regexTemplate: form.regexTemplate,
+      matchStart: form.matchStart,
+      matchEnd: form.matchEnd,
+      currentViewIds: form.currentViewIds,
+      targetViewId: form.targetViewId,
+    })).data
+    checkedConflictSignature.value = conflictCheckSignature.value
+    conflictVisible.value = true
+    if (conflictResult.value.results.length) {
+      ElMessage.warning(`发现 ${conflictResult.value.results.length} 条疑似重复或冲突命令`)
+    } else {
+      ElMessage.success('未发现疑似重复或冲突')
+    }
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error))
+  } finally {
+    conflictChecking.value = false
+  }
+}
+
+const conflictTagType = (item: CommandConflictItem): 'danger' | 'warning' | 'info' => {
+  if (item.riskLevel === 'HIGH') return 'danger'
+  if (item.riskLevel === 'MEDIUM') return 'warning'
+  return 'info'
+}
+
+const conflictTypeLabel = (item: CommandConflictItem) => ({
+  TARGET_VIEW_CONFLICT: '目标视图冲突',
+  DUPLICATE: '疑似重复',
+  REDUNDANT: '疑似覆盖',
+  MATCH_RANGE_OVERLAP: '匹配范围重叠',
+  SEMANTIC_SIMILAR: '语义相似',
+}[item.riskType])
+
+const relationLabel = (relation: CommandConflictItem['relation']) => ({
+  EXACT: '实际正则完全相同',
+  EQUIVALENT: '疑似等价',
+  NEW_CONTAINS_EXISTING: '新规则疑似包含它',
+  EXISTING_CONTAINS_NEW: '它疑似包含新规则',
+  OVERLAP: '已验证存在交集',
+  SEMANTIC_SIMILAR: '仅语义相似',
+}[relation])
 
 const schedulePreview = () => {
   window.clearTimeout(previewTimer)
@@ -482,8 +566,24 @@ watch(() => props.approval, () => { if (props.modelValue) resetForm() })
       </aside>
     </div>
     <template #footer>
-      <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="save">{{ approval ? '保存修改' : isAdmin ? '保存命令' : '提交审批' }}</el-button>
+      <div class="dialog-footer-row">
+        <div class="conflict-check-action">
+          <el-button
+            :icon="Search"
+            :loading="conflictChecking"
+            :disabled="conflictCheckDisabled"
+            @click="checkConflicts"
+          >重复与冲突检测</el-button>
+          <small v-if="conflictResult && !conflictResultStale">
+            {{ conflictResult.results.length ? `已发现 ${conflictResult.results.length} 条提示` : '未发现问题' }}
+          </small>
+          <small v-else-if="conflictResultStale" class="stale-label">内容已变更，请重新检测</small>
+        </div>
+        <div>
+          <el-button @click="emit('update:modelValue', false)">取消</el-button>
+          <el-button type="primary" :loading="saving" @click="save">{{ approval ? '保存修改' : isAdmin ? '保存命令' : '提交审批' }}</el-button>
+        </div>
+      </div>
     </template>
   </el-dialog>
 
@@ -579,6 +679,67 @@ watch(() => props.approval, () => { if (props.modelValue) resetForm() })
       <el-button type="primary" @click="applyAiSuggestion">应用建议</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="conflictVisible"
+    title="重复与冲突检测"
+    width="820px"
+    append-to-body
+    destroy-on-close
+  >
+    <template v-if="conflictResult">
+      <el-alert
+        v-if="conflictResultStale"
+        class="conflict-alert"
+        type="warning"
+        :closable="false"
+        title="命令内容已变更，下方是上一次检测结果，请重新检测。"
+      />
+      <el-alert
+        v-for="warning in conflictResult.warnings"
+        :key="warning"
+        class="conflict-alert"
+        type="warning"
+        :closable="false"
+        :title="warning"
+      />
+      <div class="conflict-summary">
+        已比较 {{ conflictResult.candidateCount }} 条同视图的已生效或待审批命令，
+        {{ conflictResult.results.length ? `发现 ${conflictResult.results.length} 条提示` : '未发现疑似问题' }}。
+        <span>检测结果仅供参考，不影响保存和审批。</span>
+      </div>
+      <div v-if="conflictResult.results.length" class="conflict-list">
+        <section v-for="item in conflictResult.results" :key="`${item.sourceType}-${item.sourceId}`" class="conflict-card">
+          <div class="conflict-card-heading">
+            <div>
+              <el-tag :type="conflictTagType(item)" effect="light">{{ conflictTypeLabel(item) }}</el-tag>
+              <el-tag type="info" effect="plain">{{ item.sourceType === 'EFFECTIVE' ? `已生效命令 #${item.sourceId}` : `待审批单 #${item.sourceId}` }}</el-tag>
+            </div>
+            <small>{{ item.confidence === 'CONFIRMED'
+              ? '已经后端匹配验证'
+              : item.evidence.length ? '已验证存在共同匹配，关系为 AI 疑似判断' : 'AI 疑似判断' }}</small>
+          </div>
+          <strong class="conflict-expression">{{ item.expressionText }}</strong>
+          <p>{{ item.message }}</p>
+          <dl class="conflict-details">
+            <div><dt>关系</dt><dd>{{ relationLabel(item.relation) }}</dd></div>
+            <div><dt>命令所在视图</dt><dd>{{ item.currentViews.map(view => view.name).join('、') }}</dd></div>
+            <div><dt>命令进入视图</dt><dd>{{ item.targetView?.name || '不切换视图' }}</dd></div>
+            <div class="conflict-regex"><dt>实际匹配正则</dt><dd><code>{{ item.expandedRegex }}</code></dd></div>
+          </dl>
+          <div v-if="item.evidence.length" class="conflict-evidence">
+            <span>同时匹配的命令样例</span>
+            <code v-for="example in item.evidence" :key="example">{{ example }}</code>
+          </div>
+        </section>
+      </div>
+      <el-empty v-else :image-size="70" description="未发现疑似重复或冲突命令" />
+    </template>
+    <template #footer>
+      <el-button v-if="conflictResultStale" :loading="conflictChecking" @click="checkConflicts">重新检测</el-button>
+      <el-button type="primary" @click="conflictVisible = false">我知道了</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -645,4 +806,27 @@ watch(() => props.approval, () => { if (props.modelValue) resetForm() })
 .ai-test-grid code { display: block; padding: 5px 0; color: #3b465a; font: 11px/1.5 "SFMono-Regular", Consolas, monospace; overflow-wrap: anywhere; }
 .ai-explanation { margin: 14px 0 0; color: #56647a; line-height: 1.65; }
 .ai-warning { margin-top: 10px; }
+.dialog-footer-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.conflict-check-action { display: flex; align-items: center; gap: 9px; }
+.conflict-check-action small { color: #657289; }
+.conflict-check-action .stale-label { color: #b56d0b; }
+.conflict-alert { margin-bottom: 10px; }
+.conflict-summary { padding: 11px 13px; border-radius: 7px; color: #4e5b70; background: #f5f7fb; font-size: 13px; line-height: 1.6; }
+.conflict-summary span { color: #7b8799; }
+.conflict-list { display: grid; gap: 12px; max-height: 58vh; margin-top: 13px; overflow-y: auto; }
+.conflict-card { padding: 14px; border: 1px solid #e1e7f0; border-radius: 9px; background: #fff; }
+.conflict-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.conflict-card-heading > div { display: flex; gap: 7px; }
+.conflict-card-heading small { color: #8a96a8; }
+.conflict-expression { display: block; margin-top: 12px; color: #2f3b50; font: 600 13px/1.5 "SFMono-Regular", Consolas, monospace; }
+.conflict-card > p { margin: 7px 0 11px; color: #58667b; line-height: 1.55; }
+.conflict-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 0; }
+.conflict-details > div { display: grid; grid-template-columns: 92px 1fr; gap: 7px; min-width: 0; }
+.conflict-details .conflict-regex { grid-column: 1 / -1; }
+.conflict-details dt { color: #8a96a8; font-size: 11px; }
+.conflict-details dd { min-width: 0; margin: 0; color: #48566c; font-size: 12px; }
+.conflict-details code { display: block; overflow-wrap: anywhere; color: #3157ba; font: 11px/1.55 "SFMono-Regular", Consolas, monospace; }
+.conflict-evidence { margin-top: 11px; padding: 9px 10px; border-radius: 6px; background: #f7fbfa; }
+.conflict-evidence span { display: block; margin-bottom: 5px; color: #637268; font-size: 11px; }
+.conflict-evidence code { display: block; padding: 2px 0; color: #21644f; font: 11px/1.5 "SFMono-Regular", Consolas, monospace; overflow-wrap: anywhere; }
 </style>

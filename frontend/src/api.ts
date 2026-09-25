@@ -7,6 +7,8 @@ import type {
   CommandAuditUsers,
   CommandAuditEvent,
   CommandApproval,
+  CommandConflictCheckPayload,
+  CommandConflictCheckResult,
   CommandPayload,
   CommandRule,
   CurrentUser,
@@ -122,6 +124,8 @@ export const commandApi = {
     http.delete(`/commands/${id}`, { params: { version, reason } }),
   preview: (regexTemplate: string, matchStart: boolean, matchEnd: boolean, testText: string) =>
     http.post<RegexPreview>('/commands/regex-preview', { regexTemplate, matchStart, matchEnd, testText }),
+  checkConflicts: (payload: CommandConflictCheckPayload) =>
+    http.post<CommandConflictCheckResult>('/commands/conflict-check', payload, { timeout: 45000 }),
 }
 
 export const aiApi = {

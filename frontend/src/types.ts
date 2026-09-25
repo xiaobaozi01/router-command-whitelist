@@ -97,6 +97,51 @@ export interface CommandPayload {
   changeReason?: string
 }
 
+export type CommandConflictRelation =
+  | 'EXACT'
+  | 'EQUIVALENT'
+  | 'NEW_CONTAINS_EXISTING'
+  | 'EXISTING_CONTAINS_NEW'
+  | 'OVERLAP'
+  | 'SEMANTIC_SIMILAR'
+
+export interface CommandConflictItem {
+  sourceType: 'EFFECTIVE' | 'PENDING'
+  sourceId: number
+  commandId?: number
+  expressionText: string
+  description: string
+  regexTemplate: string
+  expandedRegex: string
+  currentViews: OptionItem[]
+  targetView?: OptionItem
+  relation: CommandConflictRelation
+  riskType: 'TARGET_VIEW_CONFLICT' | 'DUPLICATE' | 'REDUNDANT' | 'MATCH_RANGE_OVERLAP' | 'SEMANTIC_SIMILAR'
+  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+  confidence: 'CONFIRMED' | 'SUSPECTED'
+  evidence: string[]
+  message: string
+}
+
+export interface CommandConflictCheckResult {
+  candidateCount: number
+  aiUsed: boolean
+  warnings: string[]
+  results: CommandConflictItem[]
+}
+
+export interface CommandConflictCheckPayload {
+  commandId?: number
+  approvalRequestId?: number
+  expressionHtml: string
+  description: string
+  regexTemplate: string
+  matchStart: boolean
+  matchEnd: boolean
+  currentViewIds: number[]
+  targetViewId?: number
+}
+
 export type CommandApprovalType = 'CREATE' | 'UPDATE' | 'DELETE'
 export type CommandApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 

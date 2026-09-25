@@ -6,11 +6,14 @@ import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.CommandAuditUsersResponse;
 import com.example.whitelist.dto.CommandAuditEventResponse;
+import com.example.whitelist.dto.CommandConflictCheckRequest;
+import com.example.whitelist.dto.CommandConflictCheckResponse;
 import com.example.whitelist.dto.CommandRequest;
 import com.example.whitelist.dto.CommandResponse;
 import com.example.whitelist.dto.RegexPreviewRequest;
 import com.example.whitelist.dto.RegexPreviewResponse;
 import com.example.whitelist.service.CommandService;
+import com.example.whitelist.service.CommandConflictService;
 import com.example.whitelist.service.RegexEngineService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -34,10 +37,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommandController {
     private final CommandService commandService;
     private final RegexEngineService regexEngineService;
+    private final CommandConflictService commandConflictService;
 
-    public CommandController(CommandService commandService, RegexEngineService regexEngineService) {
+    public CommandController(
+            CommandService commandService,
+            RegexEngineService regexEngineService,
+            CommandConflictService commandConflictService
+    ) {
         this.commandService = commandService;
         this.regexEngineService = regexEngineService;
+        this.commandConflictService = commandConflictService;
     }
 
     @GetMapping
@@ -116,5 +125,12 @@ public class CommandController {
                 request.matchEnd() == null || request.matchEnd(),
                 request.testText()
         ));
+    }
+
+    @PostMapping("/conflict-check")
+    @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
+    public ApiResponse<CommandConflictCheckResponse> conflictCheck(
+            @Valid @RequestBody CommandConflictCheckRequest request) {
+        return ApiResponse.success(commandConflictService.check(request));
     }
 }

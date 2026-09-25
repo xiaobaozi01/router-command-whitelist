@@ -35,6 +35,7 @@ public class MockAiGatewayClient implements AiGatewayClient {
                 case "format-command" -> objectMapper.writeValueAsString(format(request.payload()));
                 case "generate-regex" -> objectMapper.writeValueAsString(regex(request.payload()));
                 case "analyze-approval" -> objectMapper.writeValueAsString(approvalAnalysis(request.payload()));
+                case "recall-command-conflicts" -> objectMapper.writeValueAsString(conflictRecall(request.payload()));
                 default -> throw new BusinessException(500, "未知的模拟 AI 操作");
             };
         } catch (JsonProcessingException exception) {
@@ -104,5 +105,35 @@ public class MockAiGatewayClient implements AiGatewayClient {
         result.put("checklist", List.of("核对命令表达式与匹配范围", "核对所在视图和目标视图"));
         result.put("warnings", List.of("当前结论由本地 Mock 生成，接入公司 Agent 后将使用真实模型。"));
         return result;
+    }
+
+    private Map<String, Object> conflictRecall(Map<String, Object> payload) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> subject = (Map<String, Object>) payload.getOrDefault("newCommand", Map.of());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> candidates =
+                (List<Map<String, Object>>) payload.getOrDefault("candidates", List.of());
+        String subjectText = String.valueOf(subject.getOrDefault("expressionText", ""));
+        String subjectFirstWord = firstWord(subjectText);
+        List<Map<String, Object>> recalled = new ArrayList<>();
+        for (Map<String, Object> candidate : candidates) {
+            String expressionText = String.valueOf(candidate.getOrDefault("expressionText", ""));
+            if (subjectFirstWord.isBlank() || !subjectFirstWord.equalsIgnoreCase(firstWord(expressionText))) {
+                continue;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("candidateKey", String.valueOf(candidate.getOrDefault("candidateKey", "")));
+            item.put("relation", "OVERLAP");
+            item.put("examples", expressionText.isBlank() ? List.of() : List.of(expressionText));
+            item.put("reason", "模拟模式：命令首个关键字相同。");
+            recalled.add(item);
+        }
+        return Map.of("candidates", recalled);
+    }
+
+    private String firstWord(String value) {
+        String normalized = value == null ? "" : value.trim();
+        int separator = normalized.indexOf(' ');
+        return separator < 0 ? normalized : normalized.substring(0, separator);
     }
 }
