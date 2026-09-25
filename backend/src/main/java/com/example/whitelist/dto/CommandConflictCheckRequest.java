@@ -19,6 +19,8 @@ public record CommandConflictCheckRequest(
         Boolean matchEnd,
         @NotEmpty(message = "至少选择一个命令行所在视图")
         List<@NotNull Long> currentViewIds,
+        @NotEmpty(message = "至少选择一个所属场景")
+        List<@NotNull Long> sceneIds,
         Long targetViewId
 ) {
 }

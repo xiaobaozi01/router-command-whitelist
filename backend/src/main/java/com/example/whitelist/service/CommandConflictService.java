@@ -9,10 +9,14 @@ import com.example.whitelist.dto.OptionItem;
 import com.example.whitelist.entity.CommandApprovalRequest;
 import com.example.whitelist.entity.CommandCurrentView;
 import com.example.whitelist.entity.CommandRule;
+import com.example.whitelist.entity.CommandScene;
+import com.example.whitelist.entity.Scene;
 import com.example.whitelist.entity.ViewDefinition;
 import com.example.whitelist.mapper.CommandApprovalRequestMapper;
 import com.example.whitelist.mapper.CommandCurrentViewMapper;
 import com.example.whitelist.mapper.CommandRuleMapper;
+import com.example.whitelist.mapper.CommandSceneMapper;
+import com.example.whitelist.mapper.SceneMapper;
 import com.example.whitelist.mapper.ViewDefinitionMapper;
 import com.example.whitelist.util.RichTextUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -37,8 +41,10 @@ public class CommandConflictService {
 
     private final CommandRuleMapper commandMapper;
     private final CommandCurrentViewMapper currentViewMapper;
+    private final CommandSceneMapper commandSceneMapper;
     private final CommandApprovalRequestMapper approvalMapper;
     private final ViewDefinitionMapper viewMapper;
+    private final SceneMapper sceneMapper;
     private final RegexEngineService regexEngineService;
     private final CommandConflictAiService aiService;
     private final ObjectMapper objectMapper;
@@ -46,16 +52,20 @@ public class CommandConflictService {
     public CommandConflictService(
             CommandRuleMapper commandMapper,
             CommandCurrentViewMapper currentViewMapper,
+            CommandSceneMapper commandSceneMapper,
             CommandApprovalRequestMapper approvalMapper,
             ViewDefinitionMapper viewMapper,
+            SceneMapper sceneMapper,
             RegexEngineService regexEngineService,
             CommandConflictAiService aiService,
             ObjectMapper objectMapper
     ) {
         this.commandMapper = commandMapper;
         this.currentViewMapper = currentViewMapper;
+        this.commandSceneMapper = commandSceneMapper;
         this.approvalMapper = approvalMapper;
         this.viewMapper = viewMapper;
+        this.sceneMapper = sceneMapper;
         this.regexEngineService = regexEngineService;
         this.aiService = aiService;
         this.objectMapper = objectMapper;
@@ -78,6 +88,12 @@ public class CommandConflictService {
         if (requestedViews.size() != requestedViewIds.size()) {
             throw new BusinessException(400, "选择的命令所在视图不存在或已被删除");
         }
+        LinkedHashSet<Long> requestedSceneIds = new LinkedHashSet<>(request.sceneIds());
+        Map<Long, Scene> requestedScenes = sceneMapper.selectByIds(requestedSceneIds).stream()
+                .collect(Collectors.toMap(Scene::getId, Function.identity()));
+        if (requestedScenes.size() != requestedSceneIds.size()) {
+            throw new BusinessException(400, "选择的所属场景不存在或已被删除");
+        }
         ViewDefinition subjectTarget = request.targetViewId() == null
                 ? null : viewMapper.selectById(request.targetViewId());
         if (request.targetViewId() != null && subjectTarget == null) {
@@ -85,7 +101,7 @@ public class CommandConflictService {
         }
 
         List<String> warnings = new ArrayList<>();
-        CandidateLoad loaded = loadCandidates(request, requestedViewIds, warnings);
+        CandidateLoad loaded = loadCandidates(request, requestedViewIds, requestedSceneIds, warnings);
         List<Candidate> candidates = loaded.candidates();
         Map<String, Candidate> candidatesByKey = candidates.stream()
                 .collect(Collectors.toMap(Candidate::key, Function.identity(), (left, right) -> left, LinkedHashMap::new));
@@ -150,13 +166,22 @@ public class CommandConflictService {
     private CandidateLoad loadCandidates(
             CommandConflictCheckRequest request,
             Set<Long> requestedViewIds,
+            Set<Long> requestedSceneIds,
             List<String> warnings
     ) {
         LinkedHashMap<String, Candidate> result = new LinkedHashMap<>();
         List<CommandCurrentView> matchingRelations = currentViewMapper.selectList(
                 new LambdaQueryWrapper<CommandCurrentView>()
                         .in(CommandCurrentView::getViewId, requestedViewIds));
-        Set<Long> activeIds = matchingRelations.stream().map(CommandCurrentView::getCommandId)
+        Set<Long> viewMatchedIds = matchingRelations.stream().map(CommandCurrentView::getCommandId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<CommandScene> matchingSceneRelations = commandSceneMapper.selectList(
+                new LambdaQueryWrapper<CommandScene>()
+                        .in(CommandScene::getSceneId, requestedSceneIds));
+        Set<Long> sceneMatchedIds = matchingSceneRelations.stream().map(CommandScene::getCommandId)
+                .collect(Collectors.toSet());
+        Set<Long> activeIds = viewMatchedIds.stream()
+                .filter(sceneMatchedIds::contains)
                 .filter(id -> !Objects.equals(id, request.commandId()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (!activeIds.isEmpty()) {
@@ -200,7 +225,8 @@ public class CommandConflictService {
                 continue;
             }
             boolean sharesView = snapshot.currentViews().stream().map(OptionItem::id).anyMatch(requestedViewIds::contains);
-            if (!sharesView) continue;
+            boolean sharesScene = snapshot.scenes().stream().map(OptionItem::id).anyMatch(requestedSceneIds::contains);
+            if (!sharesView || !sharesScene) continue;
             if (CommandApprovalService.TYPE_UPDATE.equals(approval.getRequestType())
                     && approval.getTargetCommandId() != null) {
                 supersededActiveIds.add(approval.getTargetCommandId());

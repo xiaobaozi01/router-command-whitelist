@@ -139,6 +139,7 @@ export interface CommandConflictCheckPayload {
   matchStart: boolean
   matchEnd: boolean
   currentViewIds: number[]
+  sceneIds: number[]
   targetViewId?: number
 }
 

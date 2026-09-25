@@ -124,6 +124,7 @@ const conflictCheckSignature = computed(() => JSON.stringify({
   matchStart: form.matchStart,
   matchEnd: form.matchEnd,
   currentViewIds: [...form.currentViewIds].sort((a, b) => a - b),
+  sceneIds: [...form.sceneIds].sort((a, b) => a - b),
   targetViewId: form.targetViewId,
 }))
 const conflictResultStale = computed(() => Boolean(
@@ -131,7 +132,8 @@ const conflictResultStale = computed(() => Boolean(
 ))
 const conflictCheckDisabled = computed(() => !form.expressionHtml.trim()
   || !form.regexTemplate.trim()
-  || form.currentViewIds.length === 0)
+  || form.currentViewIds.length === 0
+  || form.sceneIds.length === 0)
 const filteredFragments = computed(() => {
   const keyword = fragmentKeyword.value.trim().toUpperCase()
   if (!keyword) return fragments.value
@@ -280,7 +282,7 @@ const runPreview = async () => {
 
 const checkConflicts = async () => {
   if (conflictCheckDisabled.value) {
-    ElMessage.warning('请先完整填写命令行表达式、所在视图和正则表达式')
+    ElMessage.warning('请先完整填写命令行表达式、所属场景、所在视图和正则表达式')
     return
   }
   await runPreview()
@@ -299,6 +301,7 @@ const checkConflicts = async () => {
       matchStart: form.matchStart,
       matchEnd: form.matchEnd,
       currentViewIds: form.currentViewIds,
+      sceneIds: form.sceneIds,
       targetViewId: form.targetViewId,
     })).data
     checkedConflictSignature.value = conflictCheckSignature.value
@@ -704,7 +707,7 @@ watch(() => props.approval, () => { if (props.modelValue) resetForm() })
         :title="warning"
       />
       <div class="conflict-summary">
-        已比较 {{ conflictResult.candidateCount }} 条同视图的已生效或待审批命令，
+        已比较 {{ conflictResult.candidateCount }} 条同场景、同视图的已生效或待审批命令，
         {{ conflictResult.results.length ? `发现 ${conflictResult.results.length} 条提示` : '未发现疑似问题' }}。
         <span>检测结果仅供参考，不影响保存和审批。</span>
       </div>
