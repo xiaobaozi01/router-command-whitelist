@@ -64,6 +64,16 @@ class CommandApprovalWorkflowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(1));
 
+        String revisedCreatePayload = commandPayload(
+                "display clock", "审批前已修改", sceneId, viewId, null, null);
+        mockMvc.perform(put("/api/command-approvals/{id}", createRequestId)
+                        .session(developer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(revisedCreatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andExpect(jsonPath("$.data.proposedSnapshot.expressionText").value("display clock"));
+
         mockMvc.perform(post("/api/command-approvals/{id}/ai-analysis", createRequestId)
                         .session(developer))
                 .andExpect(status().isForbidden());
@@ -87,7 +97,7 @@ class CommandApprovalWorkflowTest {
         MvcResult createdCommand = mockMvc.perform(get("/api/commands/{id}", commandId).session(developer))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.createdBy").value("approval-dev"))
-                .andExpect(jsonPath("$.data.expressionText").value("display version"))
+                .andExpect(jsonPath("$.data.expressionText").value("display clock"))
                 .andReturn();
         long createVersion = data(createdCommand).path("version").asLong();
 
@@ -100,8 +110,19 @@ class CommandApprovalWorkflowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.requestType").value("UPDATE"))
                 .andReturn());
+        String revisedUpdatePayload = commandPayload(
+                "display current-configuration all", "已修改", sceneId, viewId,
+                createVersion, "补充 all 参数");
+        mockMvc.perform(put("/api/command-approvals/{id}", updateRequestId)
+                        .session(developer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(revisedUpdatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.changeReason").value("补充 all 参数"))
+                .andExpect(jsonPath("$.data.proposedSnapshot.expressionText")
+                        .value("display current-configuration all"));
         mockMvc.perform(get("/api/commands/{id}", commandId).session(developer))
-                .andExpect(jsonPath("$.data.expressionText").value("display version"));
+                .andExpect(jsonPath("$.data.expressionText").value("display clock"));
         mockMvc.perform(post("/api/command-approvals/{id}/approve", updateRequestId)
                         .session(admin)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,10 +131,25 @@ class CommandApprovalWorkflowTest {
 
         MvcResult updatedCommand = mockMvc.perform(get("/api/commands/{id}", commandId).session(developer))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.expressionText").value("display current-configuration"))
+                .andExpect(jsonPath("$.data.expressionText").value("display current-configuration all"))
                 .andExpect(jsonPath("$.data.updatedBy").value("approval-dev"))
                 .andReturn();
         long updatedVersion = data(updatedCommand).path("version").asLong();
+
+        long cancelledDeleteId = responseId(mockMvc.perform(delete("/api/command-approvals/commands/{id}", commandId)
+                        .session(developer)
+                        .param("version", String.valueOf(updatedVersion))
+                        .param("reason", "暂定下线"))
+                .andExpect(status().isOk())
+                .andReturn());
+        mockMvc.perform(delete("/api/command-approvals/{id}", cancelledDeleteId).session(developer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+        mockMvc.perform(post("/api/command-approvals/{id}/approve", cancelledDeleteId)
+                        .session(admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"comment\":\"should fail\"}"))
+                .andExpect(status().isConflict());
 
         long rejectedDeleteId = responseId(mockMvc.perform(delete("/api/command-approvals/commands/{id}", commandId)
                         .session(developer)
@@ -121,6 +157,12 @@ class CommandApprovalWorkflowTest {
                         .param("reason", "认为已不需要"))
                 .andExpect(status().isOk())
                 .andReturn());
+        mockMvc.perform(put("/api/command-approvals/{id}/reason", rejectedDeleteId)
+                        .session(developer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"请确认下线\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.changeReason").value("请确认下线"));
         mockMvc.perform(post("/api/command-approvals/{id}/reject", rejectedDeleteId)
                         .session(admin)
                         .contentType(MediaType.APPLICATION_JSON)

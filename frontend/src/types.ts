@@ -98,7 +98,7 @@ export interface CommandPayload {
 }
 
 export type CommandApprovalType = 'CREATE' | 'UPDATE' | 'DELETE'
-export type CommandApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type CommandApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
 export interface CommandApprovalSnapshot {
   expressionHtml: string

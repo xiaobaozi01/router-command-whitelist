@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, Refresh, Search } from '@element-plus/icons-vue'
 import { commandApprovalApi, getErrorMessage } from '../api'
 import { isAdmin } from '../auth'
@@ -15,16 +15,19 @@ import type {
 } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 import CommandApprovalSnapshotCard from '../components/CommandApprovalSnapshotCard.vue'
+import CommandEditorDialog from '../components/CommandEditorDialog.vue'
 
 const loading = ref(false)
 const deciding = ref(false)
 const aiAnalyzing = ref(false)
 const aiAnalysis = ref<AiApprovalAnalysis>()
-const aiAnalysisCache = new Map<number, AiApprovalAnalysis>()
+const aiAnalysisCache = new Map<string, AiApprovalAnalysis>()
 const records = ref<CommandApproval[]>([])
 const total = ref(0)
 const selected = ref<CommandApproval>()
 const detailVisible = ref(false)
+const editorVisible = ref(false)
+const editingApproval = ref<CommandApproval>()
 const reviewComment = ref('')
 const query = reactive({
   current: 1,
@@ -34,8 +37,12 @@ const query = reactive({
 })
 
 const typeLabels: Record<CommandApprovalType, string> = { CREATE: '新增', UPDATE: '修改', DELETE: '删除' }
-const statusLabels: Record<CommandApprovalStatus, string> = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' }
-const statusTag = (status: CommandApprovalStatus) => ({ PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' }[status] as 'warning' | 'success' | 'danger')
+const statusLabels: Record<CommandApprovalStatus, string> = {
+  PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回', CANCELLED: '已撤销',
+}
+const statusTag: Record<CommandApprovalStatus, 'warning' | 'success' | 'danger' | 'info'> = {
+  PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', CANCELLED: 'info',
+}
 const riskLabels: Record<AiApprovalRiskLevel, string> = { LOW: '低风险', MEDIUM: '中风险', HIGH: '高风险' }
 const riskTags: Record<AiApprovalRiskLevel, 'success' | 'warning' | 'danger'> = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger' }
 const recommendationLabels: Record<AiApprovalRecommendation, string> = {
@@ -64,7 +71,7 @@ const reset = () => { Object.assign(query, { current: 1, status: 'PENDING', requ
 const openDetail = (row: CommandApproval) => {
   selected.value = row
   reviewComment.value = row.reviewComment ?? ''
-  aiAnalysis.value = aiAnalysisCache.get(row.id)
+  aiAnalysis.value = aiAnalysisCache.get(`${row.id}:${row.version}`)
   aiAnalyzing.value = false
   detailVisible.value = true
 }
@@ -74,7 +81,7 @@ const analyzeWithAi = async () => {
   aiAnalyzing.value = true
   try {
     const { data } = await commandApprovalApi.analyzeWithAi(approval.id)
-    aiAnalysisCache.set(approval.id, data)
+    aiAnalysisCache.set(`${approval.id}:${approval.version}`, data)
     if (selected.value?.id === approval.id) aiAnalysis.value = data
   } catch (error) {
     ElMessage.error(getErrorMessage(error))
@@ -99,6 +106,53 @@ const decide = async (approved: boolean) => {
   finally { deciding.value = false }
 }
 
+const editRequest = async (row: CommandApproval) => {
+  if (row.requestType !== 'DELETE') {
+    editingApproval.value = row
+    detailVisible.value = false
+    editorVisible.value = true
+    return
+  }
+  try {
+    const { value } = await ElMessageBox.prompt('修改该删除申请的原因。', '修改申请', {
+      confirmButtonText: '保存修改',
+      cancelButtonText: '取消',
+      inputValue: row.changeReason,
+      inputType: 'textarea',
+      inputPlaceholder: '请输入删除原因',
+      inputValidator: value => Boolean(value.trim()) || '必须填写删除原因',
+      inputErrorMessage: '必须填写删除原因',
+    })
+    await commandApprovalApi.updateReason(row.id, value.trim())
+    ElMessage.success('申请已修改')
+    detailVisible.value = false
+    await load()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(getErrorMessage(error))
+  }
+}
+
+const cancelRequest = async (row: CommandApproval) => {
+  try {
+    await ElMessageBox.confirm('撤销后管理员将无法审批该申请，确定继续吗？', '撤销申请', {
+      type: 'warning',
+      confirmButtonText: '确认撤销',
+      cancelButtonText: '取消',
+    })
+    await commandApprovalApi.cancel(row.id)
+    ElMessage.success('申请已撤销')
+    detailVisible.value = false
+    await load()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(getErrorMessage(error))
+  }
+}
+
+const requestEdited = async () => {
+  editingApproval.value = undefined
+  await load()
+}
+
 const snapshotTitle = (row: CommandApproval, side: 'before' | 'after') => {
   if (side === 'before') return row.requestType === 'DELETE' ? '待删除命令' : '修改前'
   return row.requestType === 'CREATE' ? '待新增命令' : '修改后'
@@ -118,6 +172,7 @@ onMounted(load)
           <el-option label="待审批" value="PENDING" />
           <el-option label="已通过" value="APPROVED" />
           <el-option label="已驳回" value="REJECTED" />
+          <el-option label="已撤销" value="CANCELLED" />
         </el-select>
         <el-select v-model="query.requestType" clearable placeholder="申请类型" style="width: 150px">
           <el-option label="新增" value="CREATE" />
@@ -134,10 +189,18 @@ onMounted(load)
         <el-table-column label="类型" width="90"><template #default="{ row }"><el-tag effect="plain">{{ typeLabels[row.requestType as CommandApprovalType] }}</el-tag></template></el-table-column>
         <el-table-column label="命令表达式" min-width="240"><template #default="{ row }"><div class="command-rich" v-html="row.proposedSnapshot.expressionHtml"></div></template></el-table-column>
         <el-table-column v-if="isAdmin" label="申请人" width="150"><template #default="{ row }">{{ row.submitterDisplayName }}<small class="subtext">{{ row.submitterUsername }}</small></template></el-table-column>
-        <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="statusTag(row.status)" effect="light">{{ statusLabels[row.status as CommandApprovalStatus] }}</el-tag></template></el-table-column>
+        <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="statusTag[row.status as CommandApprovalStatus]" effect="light">{{ statusLabels[row.status as CommandApprovalStatus] }}</el-tag></template></el-table-column>
         <el-table-column label="申请时间" width="170"><template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template></el-table-column>
         <el-table-column label="审批人" width="130"><template #default="{ row }">{{ row.reviewerDisplayName || '—' }}</template></el-table-column>
-        <el-table-column label="操作" width="90" fixed="right" align="right"><template #default="{ row }"><el-button link type="primary" @click="openDetail(row)">{{ isAdmin && row.status === 'PENDING' ? '审批' : '查看' }}</el-button></template></el-table-column>
+        <el-table-column label="操作" :width="isAdmin ? 90 : 220" fixed="right" align="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openDetail(row)">{{ isAdmin && row.status === 'PENDING' ? '审批' : '查看' }}</el-button>
+            <template v-if="!isAdmin && row.status === 'PENDING'">
+              <el-button link type="primary" @click="editRequest(row)">修改</el-button>
+              <el-button link type="danger" @click="cancelRequest(row)">撤销</el-button>
+            </template>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
     <div class="pagination-row"><el-pagination v-model:current-page="query.current" v-model:page-size="query.size" layout="total, sizes, prev, pager, next" :total="total" @change="load" /></div>
@@ -223,8 +286,19 @@ onMounted(load)
         <el-button type="danger" plain :loading="deciding" @click="decide(false)">驳回</el-button>
         <el-button type="primary" :loading="deciding" @click="decide(true)">通过</el-button>
       </template>
+      <template v-else-if="!isAdmin && selected?.status === 'PENDING'">
+        <el-button type="primary" plain @click="editRequest(selected)">修改申请</el-button>
+        <el-button type="danger" plain @click="cancelRequest(selected)">撤销申请</el-button>
+      </template>
     </template>
   </el-dialog>
+
+  <CommandEditorDialog
+    v-if="editingApproval"
+    v-model="editorVisible"
+    :approval="editingApproval"
+    @saved="requestEdited"
+  />
 </template>
 
 <style scoped>

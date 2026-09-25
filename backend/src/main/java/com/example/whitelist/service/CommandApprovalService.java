@@ -37,9 +37,11 @@ public class CommandApprovalService {
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
+    public static final String STATUS_CANCELLED = "CANCELLED";
 
     private static final Set<String> TYPES = Set.of(TYPE_CREATE, TYPE_UPDATE, TYPE_DELETE);
-    private static final Set<String> STATUSES = Set.of(STATUS_PENDING, STATUS_APPROVED, STATUS_REJECTED);
+    private static final Set<String> STATUSES = Set.of(
+            STATUS_PENDING, STATUS_APPROVED, STATUS_REJECTED, STATUS_CANCELLED);
 
     private final CommandApprovalRequestMapper approvalMapper;
     private final SceneMapper sceneMapper;
@@ -129,6 +131,56 @@ public class CommandApprovalService {
         CommandApprovalSnapshot before = snapshot(current);
         return createRequest(
                 TYPE_DELETE, commandId, current.version(), before, before, normalizedReason, submitter);
+    }
+
+    @Transactional
+    public CommandApprovalResponse updateRequest(Long requestId, CommandRequest request) {
+        CurrentUser submitter = requireDeveloper();
+        CommandApprovalRequest approval = requirePendingOwnedForUpdate(requestId, submitter);
+        if (TYPE_DELETE.equals(approval.getRequestType())) {
+            throw new BusinessException(400, "删除申请只能修改删除原因");
+        }
+
+        Long snapshotVersion = null;
+        String reason = approval.getChangeReason();
+        if (TYPE_UPDATE.equals(approval.getRequestType())) {
+            CommandResponse current = commandService.get(approval.getTargetCommandId());
+            requireCurrentVersion(approval.getTargetCommandVersion(), current.version());
+            snapshotVersion = approval.getTargetCommandVersion();
+            reason = requireReason(request.changeReason(), "修改命令时必须填写修改原因");
+        }
+
+        CommandApprovalSnapshot proposed = validateAndSnapshot(request, snapshotVersion);
+        CommandApprovalSnapshot previous = readSnapshot(approval.getProposedSnapshot());
+        if (previous.equals(proposed) && approval.getChangeReason().equals(reason)) {
+            throw new BusinessException(400, "申请内容没有变化");
+        }
+        approval.setProposedSnapshot(writeSnapshot(proposed));
+        approval.setChangeReason(reason);
+        approvalMapper.updateById(approval);
+        return toResponse(approval);
+    }
+
+    @Transactional
+    public CommandApprovalResponse updateReason(Long requestId, String reason) {
+        CurrentUser submitter = requireDeveloper();
+        CommandApprovalRequest approval = requirePendingOwnedForUpdate(requestId, submitter);
+        String normalizedReason = requireReason(reason, "申请原因不能为空");
+        if (approval.getChangeReason().equals(normalizedReason)) {
+            throw new BusinessException(400, "申请原因没有变化");
+        }
+        approval.setChangeReason(normalizedReason);
+        approvalMapper.updateById(approval);
+        return toResponse(approval);
+    }
+
+    @Transactional
+    public CommandApprovalResponse cancel(Long requestId) {
+        CurrentUser submitter = requireDeveloper();
+        CommandApprovalRequest approval = requirePendingOwnedForUpdate(requestId, submitter);
+        approval.setStatus(STATUS_CANCELLED);
+        approvalMapper.updateById(approval);
+        return toResponse(approval);
     }
 
     @Transactional
@@ -267,6 +319,14 @@ public class CommandApprovalService {
         }
         if (!STATUS_PENDING.equals(approval.getStatus())) {
             throw new BusinessException(409, "该申请已处理，请刷新后查看");
+        }
+        return approval;
+    }
+
+    private CommandApprovalRequest requirePendingOwnedForUpdate(Long id, CurrentUser submitter) {
+        CommandApprovalRequest approval = requirePendingForUpdate(id);
+        if (!approval.getSubmitterUsername().equals(submitter.username())) {
+            throw new BusinessException(403, "只能操作自己提交的申请");
         }
         return approval;
     }

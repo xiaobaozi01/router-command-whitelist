@@ -150,6 +150,11 @@ export const commandApprovalApi = {
     http.put<CommandApproval>(`/command-approvals/commands/${id}`, payload),
   submitDelete: (id: number, version: number, reason: string) =>
     http.delete<CommandApproval>(`/command-approvals/commands/${id}`, { params: { version, reason } }),
+  updateRequest: (id: number, payload: CommandPayload) =>
+    http.put<CommandApproval>(`/command-approvals/${id}`, payload),
+  updateReason: (id: number, reason: string) =>
+    http.put<CommandApproval>(`/command-approvals/${id}/reason`, { reason }),
+  cancel: (id: number) => http.delete<CommandApproval>(`/command-approvals/${id}`),
   approve: (id: number, comment: string) =>
     http.post<CommandApproval>(`/command-approvals/${id}/approve`, { comment }),
   reject: (id: number, comment: string) =>

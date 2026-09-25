@@ -5,6 +5,7 @@ import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.ApprovalDecisionRequest;
+import com.example.whitelist.dto.ApprovalReasonRequest;
 import com.example.whitelist.dto.AiApprovalAnalysisResponse;
 import com.example.whitelist.dto.CommandApprovalResponse;
 import com.example.whitelist.dto.CommandRequest;
@@ -74,6 +75,30 @@ public class CommandApprovalController {
             @RequestParam @Size(max = 500, message = "删除原因不能超过500个字符") String reason
     ) {
         return ApiResponse.success(approvalService.submitDelete(id, version, reason));
+    }
+
+    @PutMapping("/{id}")
+    @RequireRole(AuthRole.DEVELOPER)
+    public ApiResponse<CommandApprovalResponse> updateRequest(
+            @PathVariable Long id,
+            @Valid @RequestBody CommandRequest request
+    ) {
+        return ApiResponse.success(approvalService.updateRequest(id, request));
+    }
+
+    @PutMapping("/{id}/reason")
+    @RequireRole(AuthRole.DEVELOPER)
+    public ApiResponse<CommandApprovalResponse> updateReason(
+            @PathVariable Long id,
+            @Valid @RequestBody ApprovalReasonRequest request
+    ) {
+        return ApiResponse.success(approvalService.updateReason(id, request.reason()));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequireRole(AuthRole.DEVELOPER)
+    public ApiResponse<CommandApprovalResponse> cancel(@PathVariable Long id) {
+        return ApiResponse.success(approvalService.cancel(id));
     }
 
     @PostMapping("/{id}/approve")

@@ -8,6 +8,7 @@ import type {
   AiFormatCommandResult,
   AiGenerateRegexResult,
   AiStatus,
+  CommandApproval,
   CommandPayload,
   CommandRule,
   OptionItem,
@@ -17,7 +18,12 @@ import type {
 import RegexEditor from './RegexEditor.vue'
 import RichTextEditor from './RichTextEditor.vue'
 
-const props = defineProps<{ modelValue: boolean; command?: CommandRule; defaultSceneId?: number }>()
+const props = defineProps<{
+  modelValue: boolean
+  command?: CommandRule
+  approval?: CommandApproval
+  defaultSceneId?: number
+}>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; saved: [] }>()
 
 const formRef = ref<FormInstance>()
@@ -50,6 +56,16 @@ const sameIds = (left: number[], right: number[]) =>
   [...left].sort((a, b) => a - b).join(',') === [...right].sort((a, b) => a - b).join(',')
 
 const criticalChanged = computed(() => {
+  const snapshot = props.approval?.proposedSnapshot
+  if (snapshot) {
+    return form.expressionHtml !== snapshot.expressionHtml
+      || form.regexTemplate !== snapshot.regexTemplate
+      || form.matchStart !== snapshot.matchStart
+      || form.matchEnd !== snapshot.matchEnd
+      || (form.targetViewId ?? undefined) !== (snapshot.targetView?.id ?? undefined)
+      || !sameIds(form.currentViewIds, snapshot.currentViews.map(item => item.id))
+      || !sameIds(form.sceneIds, snapshot.scenes.map(item => item.id))
+  }
   const command = props.command
   if (!command) return false
   return form.expressionHtml !== command.expressionHtml
@@ -61,8 +77,10 @@ const criticalChanged = computed(() => {
     || !sameIds(form.sceneIds, command.scenes.map(item => item.id))
 })
 
-const requiresChangeReason = computed(() => Boolean(props.command)
-  && (!isAdmin.value || criticalChanged.value))
+const requiresChangeReason = computed(() => props.approval
+  ? props.approval.requestType === 'UPDATE'
+  : Boolean(props.command) && (!isAdmin.value || criticalChanged.value))
+const dialogTitle = computed(() => props.approval ? '修改申请' : props.command ? '编辑命令' : '新建命令')
 
 const hasManualBoundary = computed(() => {
   const template = form.regexTemplate
@@ -101,17 +119,19 @@ const filteredFragments = computed(() => {
 
 const resetForm = () => {
   const command = props.command
+  const snapshot = props.approval?.proposedSnapshot
   Object.assign(form, {
-    expressionHtml: command?.expressionHtml ?? '',
-    description: command?.description ?? '',
-    regexTemplate: command?.regexTemplate ?? '',
-    matchStart: command?.matchStart ?? true,
-    matchEnd: command?.matchEnd ?? true,
-    currentViewIds: command?.currentViews.map(item => item.id) ?? [],
-    targetViewId: command?.targetView?.id,
-    sceneIds: command?.scenes.map(item => item.id) ?? (props.defaultSceneId ? [props.defaultSceneId] : []),
-    version: command?.version,
-    changeReason: '',
+    expressionHtml: snapshot?.expressionHtml ?? command?.expressionHtml ?? '',
+    description: snapshot?.description ?? command?.description ?? '',
+    regexTemplate: snapshot?.regexTemplate ?? command?.regexTemplate ?? '',
+    matchStart: snapshot?.matchStart ?? command?.matchStart ?? true,
+    matchEnd: snapshot?.matchEnd ?? command?.matchEnd ?? true,
+    currentViewIds: snapshot?.currentViews.map(item => item.id) ?? command?.currentViews.map(item => item.id) ?? [],
+    targetViewId: snapshot?.targetView?.id ?? command?.targetView?.id,
+    sceneIds: snapshot?.scenes.map(item => item.id) ?? command?.scenes.map(item => item.id)
+      ?? (props.defaultSceneId ? [props.defaultSceneId] : []),
+    version: props.approval?.targetCommandVersion ?? command?.version,
+    changeReason: props.approval?.requestType === 'UPDATE' ? props.approval.changeReason : '',
     testText: '',
   })
   preview.value = { valid: false, results: [] }
@@ -270,10 +290,13 @@ const save = async () => {
       currentViewIds: form.currentViewIds,
       targetViewId: form.targetViewId,
       sceneIds: form.sceneIds,
-      version: props.command?.version,
+      version: props.approval?.targetCommandVersion ?? props.command?.version,
       changeReason: requiresChangeReason.value ? form.changeReason.trim() : undefined,
     }
-    if (isAdmin.value) {
+    if (props.approval) {
+      await commandApprovalApi.updateRequest(props.approval.id, payload)
+      ElMessage.success('申请已修改')
+    } else if (isAdmin.value) {
       if (props.command) await commandApi.update(props.command.id, payload)
       else await commandApi.create(payload)
       ElMessage.success(props.command ? '命令已更新' : '命令已创建')
@@ -290,15 +313,16 @@ const save = async () => {
 
 watch(() => props.modelValue, (open) => {
   if (open) { resetForm(); loadOptions(); loadAiStatus(); nextTick(schedulePreview) }
-})
+}, { immediate: true })
 watch(() => props.command, () => { if (props.modelValue) resetForm() })
+watch(() => props.approval, () => { if (props.modelValue) resetForm() })
 </script>
 
 <template>
   <el-dialog
     class="command-dialog"
     :model-value="modelValue"
-    :title="command ? '编辑命令' : '新建命令'"
+    :title="dialogTitle"
     width="1120px"
     top="4vh"
     destroy-on-close
@@ -351,7 +375,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
               <el-option v-for="item in scenes" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="command && requiresChangeReason" label="修改原因" prop="changeReason" class="wide-field">
+          <el-form-item v-if="requiresChangeReason" label="修改原因" prop="changeReason" class="wide-field">
             <el-input
               v-model="form.changeReason"
               type="textarea"
@@ -460,7 +484,7 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
     </div>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="save">{{ isAdmin ? '保存命令' : '提交审批' }}</el-button>
+      <el-button type="primary" :loading="saving" @click="save">{{ approval ? '保存修改' : isAdmin ? '保存命令' : '提交审批' }}</el-button>
     </template>
   </el-dialog>
 
