@@ -84,6 +84,18 @@ public class CommandApprovalService {
         return PageResponse.of(page, page.getRecords().stream().map(this::toResponse).toList());
     }
 
+    public CommandApprovalResponse getPendingForAiAnalysis(Long requestId) {
+        requireAdmin();
+        CommandApprovalRequest approval = approvalMapper.selectById(requestId);
+        if (approval == null) {
+            throw new BusinessException(404, "审批申请不存在");
+        }
+        if (!STATUS_PENDING.equals(approval.getStatus())) {
+            throw new BusinessException(409, "该申请已处理，无需再次分析");
+        }
+        return toResponse(approval);
+    }
+
     @Transactional
     public CommandApprovalResponse submitCreate(CommandRequest request) {
         CurrentUser submitter = requireDeveloper();

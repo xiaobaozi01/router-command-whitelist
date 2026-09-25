@@ -22,7 +22,9 @@ import org.springframework.test.web.servlet.MvcResult;
         "spring.datasource.url=jdbc:h2:mem:approvalworkflow;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
         "app.admin.username=approval-admin",
         "app.admin.password=admin-password",
-        "app.admin.display-name=审批管理员"
+        "app.admin.display-name=审批管理员",
+        "app.ai.enabled=true",
+        "app.ai.protocol=mock"
 })
 @AutoConfigureMockMvc
 class CommandApprovalWorkflowTest {
@@ -61,6 +63,17 @@ class CommandApprovalWorkflowTest {
         mockMvc.perform(get("/api/command-approvals").session(developer))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(1));
+
+        mockMvc.perform(post("/api/command-approvals/{id}/ai-analysis", createRequestId)
+                        .session(developer))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/command-approvals/{id}/ai-analysis", createRequestId)
+                        .session(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.riskLevel").value("MEDIUM"))
+                .andExpect(jsonPath("$.data.recommendation").value("REVIEW"))
+                .andExpect(jsonPath("$.data.summary").isNotEmpty())
+                .andExpect(jsonPath("$.data.checklist").isArray());
 
         MvcResult approvedCreate = mockMvc.perform(post("/api/command-approvals/{id}/approve", createRequestId)
                         .session(admin)

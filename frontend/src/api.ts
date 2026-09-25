@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type {
+  AiApprovalAnalysis,
   AiFormatCommandResult,
   AiGenerateRegexResult,
   AiStatus,
@@ -153,6 +154,8 @@ export const commandApprovalApi = {
     http.post<CommandApproval>(`/command-approvals/${id}/approve`, { comment }),
   reject: (id: number, comment: string) =>
     http.post<CommandApproval>(`/command-approvals/${id}/reject`, { comment }),
+  analyzeWithAi: (id: number) =>
+    http.post<AiApprovalAnalysis>(`/command-approvals/${id}/ai-analysis`, undefined, { timeout: 35000 }),
 }
 
 const migrationForm = (file: File) => {

@@ -6,8 +6,13 @@ import com.example.whitelist.dto.AiFormatCommandRequest;
 import com.example.whitelist.dto.AiFormatCommandResponse;
 import com.example.whitelist.dto.AiGenerateRegexRequest;
 import com.example.whitelist.dto.AiGenerateRegexResponse;
+import com.example.whitelist.dto.AiApprovalAnalysisResponse;
+import com.example.whitelist.dto.CommandApprovalResponse;
+import com.example.whitelist.dto.CommandApprovalSnapshot;
+import com.example.whitelist.dto.OptionItem;
 import com.example.whitelist.service.AiAssistantService;
 import com.example.whitelist.util.RichTextUtils;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +57,7 @@ class AiAssistantServiceTest {
         assertThat(response.preview().valid()).isTrue();
         assertThat(response.preview().results()).extracting(item -> item.matched())
                 .containsExactly(true, false);
+        assertThat(response.supportedExpressionText()).isEqualTo("display ip interface INTERFACE_NAME");
         assertThat(response.positiveCases()).containsExactly("display ip interface INTERFACE_NAME");
     }
 
@@ -91,5 +97,26 @@ class AiAssistantServiceTest {
     void reportsMockAvailability() {
         assertThat(aiAssistantService.status().available()).isTrue();
         assertThat(aiAssistantService.status().protocol()).isEqualTo("mock");
+    }
+
+    @Test
+    void analyzesApprovalWithoutMakingTheDecision() {
+        CommandApprovalSnapshot proposed = new CommandApprovalSnapshot(
+                "<p>display version</p>", "display version", "查看版本",
+                "display\\s+version", true, true, "^display\\s+version$",
+                List.of(new OptionItem(1L, "用户视图")), null,
+                List.of(new OptionItem(2L, "巡检场景")), null);
+        CommandApprovalResponse approval = new CommandApprovalResponse(
+                10L, "CREATE", "PENDING", null, null, null, proposed,
+                "新增巡检命令", 3L, "developer", "开发人员", LocalDateTime.now(),
+                null, null, null, null, null, 0L);
+
+        AiApprovalAnalysisResponse response = aiAssistantService.analyzeApproval(approval);
+
+        assertThat(response.riskLevel()).isEqualTo("MEDIUM");
+        assertThat(response.recommendation()).isEqualTo("REVIEW");
+        assertThat(response.summary()).contains("新增");
+        assertThat(response.checklist()).isNotEmpty();
+        assertThat(response.warnings()).isNotEmpty();
     }
 }

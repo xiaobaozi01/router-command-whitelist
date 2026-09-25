@@ -5,8 +5,10 @@ import com.example.whitelist.auth.RequireRole;
 import com.example.whitelist.common.ApiResponse;
 import com.example.whitelist.common.PageResponse;
 import com.example.whitelist.dto.ApprovalDecisionRequest;
+import com.example.whitelist.dto.AiApprovalAnalysisResponse;
 import com.example.whitelist.dto.CommandApprovalResponse;
 import com.example.whitelist.dto.CommandRequest;
+import com.example.whitelist.service.AiAssistantService;
 import com.example.whitelist.service.CommandApprovalService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -29,9 +31,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequireRole({AuthRole.ADMIN, AuthRole.DEVELOPER})
 public class CommandApprovalController {
     private final CommandApprovalService approvalService;
+    private final AiAssistantService aiAssistantService;
 
-    public CommandApprovalController(CommandApprovalService approvalService) {
+    public CommandApprovalController(
+            CommandApprovalService approvalService,
+            AiAssistantService aiAssistantService
+    ) {
         this.approvalService = approvalService;
+        this.aiAssistantService = aiAssistantService;
     }
 
     @GetMapping
@@ -85,5 +92,12 @@ public class CommandApprovalController {
             @Valid @RequestBody ApprovalDecisionRequest request
     ) {
         return ApiResponse.success(approvalService.reject(id, request));
+    }
+
+    @PostMapping("/{id}/ai-analysis")
+    @RequireRole(AuthRole.ADMIN)
+    public ApiResponse<AiApprovalAnalysisResponse> analyzeWithAi(@PathVariable Long id) {
+        CommandApprovalResponse approval = approvalService.getPendingForAiAnalysis(id);
+        return ApiResponse.success(aiAssistantService.analyzeApproval(approval));
     }
 }

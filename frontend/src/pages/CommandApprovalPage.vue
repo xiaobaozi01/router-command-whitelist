@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { MagicStick, Refresh, Search } from '@element-plus/icons-vue'
 import { commandApprovalApi, getErrorMessage } from '../api'
 import { isAdmin } from '../auth'
 import { formatDateTime } from '../dateTime'
-import type { CommandApproval, CommandApprovalStatus, CommandApprovalType } from '../types'
+import type {
+  AiApprovalAnalysis,
+  AiApprovalRecommendation,
+  AiApprovalRiskLevel,
+  CommandApproval,
+  CommandApprovalStatus,
+  CommandApprovalType,
+} from '../types'
 import PageHeader from '../components/PageHeader.vue'
 import CommandApprovalSnapshotCard from '../components/CommandApprovalSnapshotCard.vue'
 
 const loading = ref(false)
 const deciding = ref(false)
+const aiAnalyzing = ref(false)
+const aiAnalysis = ref<AiApprovalAnalysis>()
+const aiAnalysisCache = new Map<number, AiApprovalAnalysis>()
 const records = ref<CommandApproval[]>([])
 const total = ref(0)
 const selected = ref<CommandApproval>()
@@ -26,6 +36,14 @@ const query = reactive({
 const typeLabels: Record<CommandApprovalType, string> = { CREATE: '新增', UPDATE: '修改', DELETE: '删除' }
 const statusLabels: Record<CommandApprovalStatus, string> = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' }
 const statusTag = (status: CommandApprovalStatus) => ({ PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' }[status] as 'warning' | 'success' | 'danger')
+const riskLabels: Record<AiApprovalRiskLevel, string> = { LOW: '低风险', MEDIUM: '中风险', HIGH: '高风险' }
+const riskTags: Record<AiApprovalRiskLevel, 'success' | 'warning' | 'danger'> = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger' }
+const recommendationLabels: Record<AiApprovalRecommendation, string> = {
+  APPROVE: '建议通过', REVIEW: '建议人工复核', REJECT: '建议驳回',
+}
+const recommendationTags: Record<AiApprovalRecommendation, 'success' | 'warning' | 'danger'> = {
+  APPROVE: 'success', REVIEW: 'warning', REJECT: 'danger',
+}
 const pageDescription = computed(() => isAdmin.value
   ? '审批开发人员提交的命令新增、修改和删除申请'
   : '查看自己提交的命令申请及审批结果')
@@ -46,7 +64,23 @@ const reset = () => { Object.assign(query, { current: 1, status: 'PENDING', requ
 const openDetail = (row: CommandApproval) => {
   selected.value = row
   reviewComment.value = row.reviewComment ?? ''
+  aiAnalysis.value = aiAnalysisCache.get(row.id)
+  aiAnalyzing.value = false
   detailVisible.value = true
+}
+const analyzeWithAi = async () => {
+  const approval = selected.value
+  if (!approval) return
+  aiAnalyzing.value = true
+  try {
+    const { data } = await commandApprovalApi.analyzeWithAi(approval.id)
+    aiAnalysisCache.set(approval.id, data)
+    if (selected.value?.id === approval.id) aiAnalysis.value = data
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error))
+  } finally {
+    if (selected.value?.id === approval.id) aiAnalyzing.value = false
+  }
 }
 const decide = async (approved: boolean) => {
   if (!selected.value) return
@@ -135,6 +169,48 @@ onMounted(load)
         />
       </div>
 
+      <section v-if="isAdmin && selected.status === 'PENDING'" class="ai-review-panel">
+        <header class="ai-review-header">
+          <div>
+            <h3>AI 审批助手</h3>
+            <p>基于当前审批快照分析变更风险，不会自动执行审批。</p>
+          </div>
+          <el-button type="primary" plain :icon="MagicStick" :loading="aiAnalyzing" @click="analyzeWithAi">
+            {{ aiAnalysis ? '重新分析' : '分析风险' }}
+          </el-button>
+        </header>
+
+        <div v-if="aiAnalysis" class="ai-review-result">
+          <div class="ai-review-tags">
+            <el-tag :type="riskTags[aiAnalysis.riskLevel]" effect="dark">
+              {{ riskLabels[aiAnalysis.riskLevel] }}
+            </el-tag>
+            <el-tag :type="recommendationTags[aiAnalysis.recommendation]" effect="plain">
+              {{ recommendationLabels[aiAnalysis.recommendation] }}
+            </el-tag>
+          </div>
+          <p class="ai-summary">{{ aiAnalysis.summary }}</p>
+          <div class="ai-reason"><strong>建议理由</strong><span>{{ aiAnalysis.recommendationReason }}</span></div>
+          <div v-if="aiAnalysis.riskPoints.length" class="ai-list risk-list">
+            <strong>风险点</strong>
+            <ul><li v-for="item in aiAnalysis.riskPoints" :key="item">{{ item }}</li></ul>
+          </div>
+          <div v-if="aiAnalysis.checklist.length" class="ai-list">
+            <strong>审批前核对</strong>
+            <ul><li v-for="item in aiAnalysis.checklist" :key="item">{{ item }}</li></ul>
+          </div>
+          <el-alert
+            v-if="aiAnalysis.warnings.length"
+            type="warning"
+            :closable="false"
+            show-icon
+            :title="aiAnalysis.warnings.join('；')"
+          />
+          <p class="ai-disclaimer">AI 结论仅供参考，最终审批仍由管理员根据实际业务和设备规范决定。</p>
+        </div>
+        <el-empty v-else :image-size="52" description="点击“分析风险”获取结构化审批建议" />
+      </section>
+
       <el-form v-if="isAdmin && selected.status === 'PENDING'" label-position="top" class="decision-form">
         <el-form-item label="审批意见（驳回时必填）">
           <el-input v-model="reviewComment" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="请输入审批意见" />
@@ -157,5 +233,19 @@ onMounted(load)
 .approval-meta { margin-bottom: 20px; }
 .snapshot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .snapshot-grid.single { grid-template-columns: 1fr; }
+.ai-review-panel { margin-top: 20px; padding: 18px; border: 1px solid #dce5f5; border-radius: 10px; background: #f8faff; }
+.ai-review-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ai-review-header h3 { margin: 0 0 5px; color: #303a4d; font-size: 15px; }
+.ai-review-header p { margin: 0; color: #7a869a; font-size: 12px; }
+.ai-review-panel :deep(.el-empty) { padding: 15px 0 0; }
+.ai-review-result { display: grid; gap: 13px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e1e7f2; }
+.ai-review-tags { display: flex; gap: 8px; }
+.ai-summary { margin: 0; color: #35415a; font-size: 14px; line-height: 1.7; }
+.ai-reason { display: grid; grid-template-columns: 74px 1fr; gap: 10px; color: #536078; font-size: 13px; line-height: 1.65; }
+.ai-reason strong, .ai-list > strong { color: #35415a; }
+.ai-list { display: grid; grid-template-columns: 74px 1fr; gap: 10px; color: #536078; font-size: 13px; line-height: 1.65; }
+.ai-list ul { margin: 0; padding-left: 18px; }
+.risk-list li::marker { color: #d96055; }
+.ai-disclaimer { margin: 0; color: #8a94a6; font-size: 11px; }
 .decision-form { margin-top: 20px; }
 </style>

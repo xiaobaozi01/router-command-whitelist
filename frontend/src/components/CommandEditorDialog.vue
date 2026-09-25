@@ -494,6 +494,11 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
     </template>
 
     <template v-if="aiSuggestionKind === 'regex' && regexSuggestion">
+      <div class="ai-supported-expression">
+        <div class="ai-preview-title">AI 理解后的实际支持命令</div>
+        <code>{{ regexSuggestion.supportedExpressionText }}</code>
+        <small>已按删除线语义移除本系统不支持的内容，请先确认该结构是否符合预期。</small>
+      </div>
       <div class="ai-regex-result">
         <div class="ai-preview-title ai-copy-title">
           <span>正则模板</span>
@@ -606,6 +611,9 @@ watch(() => props.command, () => { if (props.modelValue) resetForm() })
 .ai-preview-title { margin-bottom: 7px; color: #6d7b8f; font-size: 12px; font-weight: 600; }
 .ai-copy-title { display: flex; align-items: center; justify-content: space-between; min-height: 24px; }
 .ai-command-preview { min-height: 70px; padding: 12px; border: 1px solid #e2e8f1; border-radius: 7px; background: #fafbfd; overflow-wrap: anywhere; }
+.ai-supported-expression { margin-bottom: 15px; padding: 12px; border: 1px solid #dce4f2; border-radius: 7px; background: #f8faff; }
+.ai-supported-expression code { display: block; color: #35415a; font: 12px/1.65 "SFMono-Regular", Consolas, monospace; overflow-wrap: anywhere; }
+.ai-supported-expression small { display: block; margin-top: 7px; color: #7c8799; font-size: 11px; }
 .ai-regex-result { padding: 12px; border: 1px solid #dce8e4; border-radius: 7px; background: #f7fbfa; }
 .ai-regex-result > code { display: block; color: #21644f; font: 12px/1.6 "SFMono-Regular", Consolas, monospace; word-break: break-all; }
 .ai-test-grid { margin-top: 15px; }

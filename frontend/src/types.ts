@@ -192,12 +192,26 @@ export interface AiFormatCommandResult {
 }
 
 export interface AiGenerateRegexResult {
+  supportedExpressionText: string
   regexTemplate: string
   positiveCases: string[]
   negativeCases: string[]
   explanation: string
   warnings: string[]
   preview: RegexPreview
+}
+
+export type AiApprovalRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
+export type AiApprovalRecommendation = 'APPROVE' | 'REVIEW' | 'REJECT'
+
+export interface AiApprovalAnalysis {
+  riskLevel: AiApprovalRiskLevel
+  recommendation: AiApprovalRecommendation
+  summary: string
+  recommendationReason: string
+  riskPoints: string[]
+  checklist: string[]
+  warnings: string[]
 }
 
 export interface DataMigrationSummary {
