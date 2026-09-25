@@ -192,7 +192,7 @@ export interface AiFormatCommandResult {
 }
 
 export interface AiGenerateRegexResult {
-  supportedExpressionText: string
+  supportedExpressionHtml: string
   regexTemplate: string
   positiveCases: string[]
   negativeCases: string[]

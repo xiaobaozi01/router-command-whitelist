@@ -3,7 +3,7 @@ package com.example.whitelist.dto;
 import java.util.List;
 
 public record AiGenerateRegexResponse(
-        String supportedExpressionText,
+        String supportedExpressionHtml,
         String regexTemplate,
         List<String> positiveCases,
         List<String> negativeCases,

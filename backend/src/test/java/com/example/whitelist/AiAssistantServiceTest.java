@@ -48,7 +48,6 @@ class AiAssistantServiceTest {
                 new AiGenerateRegexRequest(
                         "<p>display ip interface INTERFACE_NAME</p>",
                         "查看接口信息",
-                        "",
                         true,
                         true,
                         List.of(),
@@ -57,7 +56,8 @@ class AiAssistantServiceTest {
         assertThat(response.preview().valid()).isTrue();
         assertThat(response.preview().results()).extracting(item -> item.matched())
                 .containsExactly(true, false);
-        assertThat(response.supportedExpressionText()).isEqualTo("display ip interface INTERFACE_NAME");
+        assertThat(response.supportedExpressionHtml())
+                .isEqualTo("<p>display ip interface INTERFACE_NAME</p>");
         assertThat(response.positiveCases()).containsExactly("display ip interface INTERFACE_NAME");
     }
 
@@ -67,7 +67,6 @@ class AiAssistantServiceTest {
                 new AiGenerateRegexRequest(
                         "<p><strong>display</strong> <em>VALUE</em></p>",
                         "测试用户边界设置",
-                        "",
                         false,
                         false,
                         List.of(),
@@ -83,7 +82,6 @@ class AiAssistantServiceTest {
                 new AiGenerateRegexRequest(
                         "<p><strong>display</strong> <s>ipv6</s> <em>interface</em></p>",
                         "ipv6 是设备支持但本系统不支持的部分",
-                        "",
                         true,
                         true,
                         List.of(),

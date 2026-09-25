@@ -66,12 +66,13 @@ public class MockAiGatewayClient implements AiGatewayClient {
     }
 
     private Map<String, Object> regex(Map<String, Object> payload) {
-        String expression = RichTextUtils.toPlainTextWithoutStrikethrough(
+        String supportedExpressionHtml = RichTextUtils.withoutStrikethrough(
                 String.valueOf(payload.getOrDefault("expressionHtml", "")));
+        String expression = RichTextUtils.toPlainText(supportedExpressionHtml);
         List<String> negativeCases = new ArrayList<>();
         negativeCases.add("invalid-command");
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("supportedExpressionText", expression);
+        result.put("supportedExpressionHtml", supportedExpressionHtml);
         result.put("regexTemplate", Pattern.quote(expression));
         result.put("positiveCases", List.of(expression));
         result.put("negativeCases", negativeCases);

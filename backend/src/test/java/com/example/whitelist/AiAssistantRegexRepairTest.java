@@ -22,6 +22,7 @@ import com.example.whitelist.service.AiAssistantService;
 import com.example.whitelist.service.RegexEngineService;
 import com.example.whitelist.service.ai.AiGatewayRequest;
 import com.example.whitelist.service.ai.AiGatewayRouter;
+import com.example.whitelist.util.RichTextUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,7 +33,7 @@ import org.mockito.ArgumentCaptor;
 
 class AiAssistantRegexRepairTest {
     private static final String STRIKETHROUGH_SEMANTICS =
-            "删除线（HTML s 标签）具有唯一的业务含义：该部分语法由华为设备支持，但本系统因业务原因不支持。";
+            "删除线（HTML s 标签）表示该部分语法由华为设备支持，但本系统不支持。";
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AiGatewayRouter gateway = mock(AiGatewayRouter.class);
     private AiAssistantService service;
@@ -64,14 +65,21 @@ class AiAssistantRegexRepairTest {
 
         ArgumentCaptor<AiGatewayRequest> requests = ArgumentCaptor.forClass(AiGatewayRequest.class);
         verify(gateway, times(2)).generate(requests.capture());
+        AiGatewayRequest initialRequest = requests.getAllValues().getFirst();
         AiGatewayRequest repairRequest = requests.getAllValues().get(1);
         assertThat(repairRequest.systemPrompt()).contains("对上一次生成结果的修正请求");
         assertThat(repairRequest.userPrompt())
                 .contains("反例“ospf 1 router-id”仍会被正则匹配")
-                .doesNotContain("matchStart", "matchEnd", "availableFragments");
-        assertThat(requests.getAllValues().getFirst().systemPrompt())
+                .contains("\"matchStart\":true", "\"matchEnd\":false")
+                .doesNotContain("currentRegexTemplate", "availableFragments");
+        assertThat(initialRequest.userPrompt())
+                .contains("\"matchStart\":true", "\"matchEnd\":false")
+                .doesNotContain("currentRegexTemplate");
+        assertThat(initialRequest.systemPrompt())
                 .contains("如果参数是纯数字，必须使用 \\d+")
                 .contains("不得使用 \\S+、.+、.*")
+                .contains("使用 Java Matcher.find() 逐行验证测试数据")
+                .contains("正例在应用边界后必须匹配，反例在应用边界后必须不匹配")
                 .contains(STRIKETHROUGH_SEMANTICS)
                 .doesNotContain("系统正则片段", "${NAME}");
     }
@@ -93,7 +101,11 @@ class AiAssistantRegexRepairTest {
         verify(gateway).generate(requests.capture());
         assertThat(requests.getValue().systemPrompt())
                 .contains(STRIKETHROUGH_SEMANTICS)
-                .contains("不得擅自移除已有 s 或改变其范围");
+                .contains("必须保留 currentHtml 中已有的 s，且不得改变其范围")
+                .contains("只有 description 明确指出本系统不支持的连续正文范围")
+                .contains("该范围能在 expressionText 中唯一定位时，才可以新增 s")
+                .contains("存在多个相同文本而无法唯一定位，不得新增 s")
+                .contains("formattedHtml 必须只有一个 p 根标签");
     }
 
     @Test
@@ -114,35 +126,39 @@ class AiAssistantRegexRepairTest {
     void letsAiInterpretStrikethroughWithoutBackendDerivedText() throws Exception {
         when(gateway.generate(any())).thenReturn(modelResult(
                 "display\\s+interface",
-                "display interface",
+                "<p><strong>display</strong> <em>interface</em></p>",
                 "display interface",
                 "invalid-command"));
 
         AiGenerateRegexResponse response = service.generateRegex(new AiGenerateRegexRequest(
                 "<p><strong>display</strong> <s>ipv6</s> <em>interface</em></p>",
                 "ipv6 是本系统不支持的部分",
-                "",
                 true,
                 true,
                 List.of(),
                 null));
 
-        assertThat(response.supportedExpressionText()).isEqualTo("display interface");
+        assertThat(response.supportedExpressionHtml())
+                .isEqualTo("<p><strong>display</strong> <em>interface</em></p>");
         assertThat(response.regexTemplate()).isEqualTo("display\\s+interface");
         ArgumentCaptor<AiGatewayRequest> requests = ArgumentCaptor.forClass(AiGatewayRequest.class);
         verify(gateway).generate(requests.capture());
         assertThat(requests.getAllValues().getFirst().userPrompt())
                 .contains("\"expressionHtml\":\"<p><strong>display</strong> <s>ipv6</s> <em>interface</em></p>\"")
-                .doesNotContain("supportedExpressionText", "excludedTexts", "expressionText");
+                .doesNotContain("supportedExpressionHtml", "excludedTexts", "expressionText");
     }
 
     @Test
     void acceptsAiSemanticRemovalOfAnAlternativeBranch() throws Exception {
         String supported = "ospf bfd { min-rx-interval receive-interval | "
                 + "min-tx-interval transmit-interval | frr-binding } *";
+        String supportedHtml = "<p><strong>ospf bfd</strong> { "
+                + "<strong>min-rx-interval</strong> <em>receive-interval</em> | "
+                + "<strong>min-tx-interval</strong> <em>transmit-interval</em> | "
+                + "<strong>frr-binding</strong> } *</p>";
         when(gateway.generate(any())).thenReturn(modelResult(
                 "ospf\\s+bfd\\s+frr-binding",
-                supported,
+                supportedHtml,
                 "ospf bfd frr-binding",
                 "ospf bfd detect-multiplier 3"));
         String html = "<p><strong>ospf bfd</strong> { "
@@ -152,17 +168,26 @@ class AiAssistantRegexRepairTest {
                 + "<strong>frr-binding</strong> } *</p>";
 
         AiGenerateRegexResponse response = service.generateRegex(new AiGenerateRegexRequest(
-                html, "配置 OSPF BFD", "", true, true, List.of(), null));
+                html, "配置 OSPF BFD", true, true, List.of(), null));
 
-        assertThat(response.supportedExpressionText()).isEqualTo(supported).doesNotContain("| |", "detect-multiplier");
+        assertThat(RichTextUtils.toPlainText(response.supportedExpressionHtml())).isEqualTo(supported);
+        assertThat(response.supportedExpressionHtml())
+                .contains("<strong>min-rx-interval</strong>", "<em>receive-interval</em>")
+                .doesNotContain("| |", "detect-multiplier", "<s>");
         ArgumentCaptor<AiGatewayRequest> requests = ArgumentCaptor.forClass(AiGatewayRequest.class);
         verify(gateway).generate(requests.capture());
         assertThat(requests.getValue().userPrompt())
                 .contains("<s><strong>detect-multiplier</strong> <em>multiplier-value</em></s>")
-                .doesNotContain("supportedExpressionText", "excludedTexts");
+                .doesNotContain("supportedExpressionHtml", "excludedTexts");
         assertThat(requests.getValue().systemPrompt())
-                .contains("不得留下连续、开头或结尾的竖线")
-                .contains("嵌套选项应递归处理");
+                .contains("supportedExpressionHtml 返回“删除线处理后的命令手册 HTML 表达式”")
+                .contains("保留输入中未被删除内容的 strong 和 em 格式")
+                .contains("不得出现连续、开头或结尾的竖线")
+                .contains("嵌套结构递归处理")
+                .contains("可选结构必须把关联空白一并放入可选组")
+                .contains("同一选项不可重复")
+                .contains("手册注释不得进入正则或正例")
+                .doesNotContain("is-level");
     }
 
     @Test
@@ -174,7 +199,7 @@ class AiAssistantRegexRepairTest {
                 "recommendationReason", "需要确认系统支持范围是否被意外扩大。",
                 "riskPoints", List.of("原本不支持的 ipv6 可能进入实际匹配范围。"),
                 "checklist", List.of("确认删除线变化符合业务预期。"),
-                "warnings", List.of("当前信息不足以确认设备实际行为。")
+                "warnings", List.of()
         )));
         CommandApprovalSnapshot before = approvalSnapshot(
                 "<p>display <s>ipv6</s> interface</p>");
@@ -195,10 +220,17 @@ class AiAssistantRegexRepairTest {
                 .contains("审批对象是本系统中的命令白名单规则数据，不是路由器设备")
                 .contains("绝不表示向路由器下发命令、修改设备配置、从设备删除命令")
                 .contains("不得仅因申请类型是修改或删除就提高风险等级")
-                .contains("删除线内容是否意外进入实际正则")
+                .contains("这里只审查现有白名单规则，不生成替代正则或测试用例")
+                .contains("把手册语法标记当作设备输入字面匹配")
+                .contains("不得输出通用的模型能力免责声明")
+                .contains("LOW 表示未发现影响白名单支持范围或匹配正确性的实质问题")
+                .contains("MEDIUM 表示存在局部不一致、信息不足或需要人工确认的问题")
+                .contains("HIGH 表示已经确认或高度怀疑存在显著的范围错误")
+                .contains("若潜在后果严重但尚未确认则可以为 HIGH")
+                .contains("只有已经确认存在严重问题时才使用 REJECT，且 riskLevel 必须为 HIGH")
                 .contains("不要解释输入或输出的数据结构")
                 .doesNotContain(
-                        "changedFields", "regexTemplate", "expressionFormatting", "所属场景",
+                        "changedFields", "regexTemplate", "positiveCases", "expressionFormatting", "所属场景",
                         "业务背景", "业务场景", "使用对象", "上线计划");
         assertThat(request.userPrompt())
                 .contains("\"申请原因\":\"支持 IPv6\"")
@@ -207,12 +239,12 @@ class AiAssistantRegexRepairTest {
                 .contains("\"命令表达式（含格式标记）\":\"<p>display ipv6 interface</p>\"")
                 .contains("\"本次涉及内容\":[\"命令格式及删除线范围\"]")
                 .doesNotContain("expressionHtml", "changedFields", "expressionFormatting",
-                        "supportedExpressionText", "excludedTexts", "所属场景", "内部巡检分类");
+                        "supportedExpressionHtml", "excludedTexts", "所属场景", "内部巡检分类");
         assertThat(response.summary()).isEqualTo("命令格式及删除线范围发生变化。");
         assertThat(response.recommendationReason()).isEqualTo("需要确认系统支持范围是否被意外扩大。");
         assertThat(response.riskPoints()).containsExactly("原本不支持的 ipv6 可能进入实际匹配范围。");
         assertThat(response.checklist()).containsExactly("确认删除线变化符合业务预期。");
-        assertThat(response.warnings()).containsExactly("当前信息不足以确认设备实际行为。");
+        assertThat(response.warnings()).isEmpty();
     }
 
     @Test
@@ -243,8 +275,8 @@ class AiAssistantRegexRepairTest {
         verify(gateway, times(2)).generate(requests.capture());
         assertThat(requests.getAllValues()).allSatisfy(request -> {
             assertThat(request.systemPrompt())
-                    .contains("新增或删除命令不需要申请原因")
-                    .contains("不得要求补充原因或实际用途");
+                    .contains("新增和删除申请不需要申请原因")
+                    .contains("不得因未提供原因而提高风险或要求补充原因、用途");
             assertThat(request.userPrompt()).doesNotContain("\"申请原因\"");
         });
         assertThat(requests.getAllValues().get(0).userPrompt()).contains("\"申请类型\":\"新增命令\"");
@@ -263,7 +295,6 @@ class AiAssistantRegexRepairTest {
         return new AiGenerateRegexRequest(
                 "<p>ospf 1 router-id 1.1.1.1</p>",
                 "配置 OSPF Router ID",
-                "",
                 true,
                 false,
                 List.of(),
@@ -274,22 +305,23 @@ class AiAssistantRegexRepairTest {
     private String modelResult(String regexTemplate) throws Exception {
         return modelResult(
                 regexTemplate,
+                "<p>ospf 1 router-id 1.1.1.1</p>",
                 "ospf 1 router-id 1.1.1.1",
                 "ospf 1 router-id");
     }
 
     private String modelResult(String regexTemplate, String positiveCase, String negativeCase) throws Exception {
-        return modelResult(regexTemplate, positiveCase, positiveCase, negativeCase);
+        return modelResult(regexTemplate, "<p>" + positiveCase + "</p>", positiveCase, negativeCase);
     }
 
     private String modelResult(
             String regexTemplate,
-            String supportedExpressionText,
+            String supportedExpressionHtml,
             String positiveCase,
             String negativeCase
     ) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
-                "supportedExpressionText", supportedExpressionText,
+                "supportedExpressionHtml", supportedExpressionHtml,
                 "regexTemplate", regexTemplate,
                 "positiveCases", List.of(positiveCase),
                 "negativeCases", List.of(negativeCase),

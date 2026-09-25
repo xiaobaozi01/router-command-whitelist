@@ -12,8 +12,6 @@ public record AiGenerateRegexRequest(
         String expressionHtml,
         @Size(max = 1000, message = "命令行描述不能超过1000个字符")
         String description,
-        @Size(max = 10000, message = "现有正则内容过长")
-        String currentRegexTemplate,
         Boolean matchStart,
         Boolean matchEnd,
         @Size(max = 50, message = "命令所在视图不能超过50个")

@@ -133,7 +133,6 @@ export const aiApi = {
   generateRegex: (payload: {
     expressionHtml: string
     description: string
-    currentRegexTemplate: string
     matchStart: boolean
     matchEnd: boolean
     currentViewIds: number[]
