@@ -142,9 +142,8 @@ public class CommandConflictService {
                                     && candidate.pattern().matcher(example).find())
                             .distinct()
                             .toList();
-                    String relation = commonMatches.isEmpty()
-                            ? "SEMANTIC_SIMILAR"
-                            : normalizedVerifiedRelation(recall.relation());
+                    if (commonMatches.isEmpty()) continue;
+                    String relation = normalizedVerifiedRelation(recall.relation());
                     String confidence = relation.equals("OVERLAP") ? "CONFIRMED" : "SUSPECTED";
                     results.put(candidate.key(), toItem(
                             candidate, relation, commonMatches, confidence, request.targetViewId()));

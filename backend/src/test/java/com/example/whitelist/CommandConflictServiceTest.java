@@ -165,6 +165,20 @@ class CommandConflictServiceTest {
         assertThat(result.results()).isEmpty();
     }
 
+    @Test
+    void dropsAiCandidatesWhenNoCommonExamplePassesBothRegexes() {
+        ViewDefinition current = insertView("接口视图");
+        Scene scene = insertScene("OSPF 场景");
+        insertCommand("display version", "display\\s+version", current, null, scene);
+
+        CommandConflictCheckResponse result = conflictService.check(request(
+                "display clock", "display\\s+clock", current.getId(), scene.getId(), null));
+
+        assertThat(result.aiUsed()).isTrue();
+        assertThat(result.candidateCount()).isEqualTo(1);
+        assertThat(result.results()).isEmpty();
+    }
+
     private CommandConflictCheckRequest request(
             String expression,
             String regex,
